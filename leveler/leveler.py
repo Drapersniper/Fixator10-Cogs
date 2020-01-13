@@ -8,7 +8,7 @@ import operator
 import os
 from PIL import Image, ImageDraw, ImageFont, ImageColor, ImageOps, ImageFilter
 import platform
-from pymongo import MongoClient
+from motor.motor_asyncio import AsyncIOMotorClient
 import random
 import re
 import scipy
@@ -28,7 +28,7 @@ from redbot.core.utils.chat_formatting import pagify, box
 from redbot.core.utils.menus import menu, DEFAULT_CONTROLS
 from redbot.core.utils.predicates import MessagePredicate
 
-client = MongoClient()
+client = AsyncIOMotorClient()
 db = client["leveler"]
 
 
@@ -153,7 +153,7 @@ class Leveler(commands.Cog):
 
         # creates user if doesn't exist
         await self._create_user(user, server)
-        userinfo = db.users.find_one({"user_id": str(user.id)})
+        userinfo = await db.users.find_one({"user_id": str(user.id)})
 
         # check if disabled
         if await self.config.guild(ctx.guild).disabled():
@@ -173,7 +173,7 @@ class Leveler(commands.Cog):
                 await channel.send(
                     "**User profile for {}**".format(await self._is_mention(user)), file=file
                 )
-            db.users.update_one(
+            await db.users.update_one(
                 {"user_id": str(user.id)}, {"$set": {"profile_block": curr_time}}, upsert=True
             )
             try:
@@ -224,7 +224,7 @@ class Leveler(commands.Cog):
 
         # creates user if doesn't exist
         await self._create_user(user, server)
-        userinfo = db.users.find_one({"user_id": str(user.id)})
+        userinfo = await db.users.find_one({"user_id": str(user.id)})
 
         # check if disabled
         if await self.config.guild(ctx.guild).disabled():
@@ -245,7 +245,7 @@ class Leveler(commands.Cog):
                     "**Ranking & Statistics for {}**".format(await self._is_mention(user)),
                     file=file,
                 )
-            db.users.update_one(
+            await db.users.update_one(
                 {"user_id": str(user.id)},
                 {"$set": {"rank_block".format(server.id): curr_time}},
                 upsert=True,
@@ -292,7 +292,7 @@ class Leveler(commands.Cog):
         user_stat = None
         if "-rep" in options and "-global" in options:
             title = "Global Rep Leaderboard for {}\n".format(self.bot.user.name)
-            for userinfo in db.users.find({}):
+            async for userinfo in db.users.find({}):
                 await asyncio.sleep(0)
                 try:
                     users.append((userinfo["username"], userinfo["rep"]))
@@ -309,7 +309,7 @@ class Leveler(commands.Cog):
             icon_url = self.bot.user.avatar_url
         elif "-global" in options:
             title = "Global Exp Leaderboard for {}\n".format(self.bot.user.name)
-            for userinfo in db.users.find({}):
+            async for userinfo in db.users.find({}):
                 await asyncio.sleep(0)
                 try:
                     users.append((userinfo["username"], userinfo["total_exp"]))
@@ -326,7 +326,7 @@ class Leveler(commands.Cog):
             icon_url = self.bot.user.avatar_url
         elif "-rep" in options:
             title = "Rep Leaderboard for {}\n".format(server.name)
-            for userinfo in db.users.find({}):
+            async for userinfo in db.users.find({}):
                 await asyncio.sleep(0)
                 if "servers" in userinfo and str(server.id) in userinfo["servers"]:
                     try:
@@ -344,7 +344,7 @@ class Leveler(commands.Cog):
             icon_url = server.icon_url
         else:
             title = "Exp Leaderboard for {}\n".format(server.name)
-            for userinfo in db.users.find({}):
+            async for userinfo in db.users.find({}):
                 await asyncio.sleep(0)
                 try:
                     if "servers" in userinfo and str(server.id) in userinfo["servers"]:
@@ -427,7 +427,7 @@ class Leveler(commands.Cog):
         await self._create_user(org_user, server)
         if user:
             await self._create_user(user, server)
-        org_userinfo = db.users.find_one({"user_id": str(org_user.id)})
+        org_userinfo = await db.users.find_one({"user_id": str(org_user.id)})
         curr_time = time.time()
 
         if await self.config.guild(ctx.guild).disabled():
@@ -444,9 +444,13 @@ class Leveler(commands.Cog):
 
         delta = float(curr_time) - float(org_userinfo["rep_block"])
         if user and delta >= 43200.0 and delta > 0:
-            userinfo = db.users.find_one({"user_id": str(user.id)})
-            db.users.update_one({"user_id": str(org_user.id)}, {"$set": {"rep_block": curr_time}})
-            db.users.update_one({"user_id": str(user.id)}, {"$set": {"rep": userinfo["rep"] + 1}})
+            userinfo = await db.users.find_one({"user_id": str(user.id)})
+            await db.users.update_one(
+                {"user_id": str(org_user.id)}, {"$set": {"rep_block": curr_time}}
+            )
+            await db.users.update_one(
+                {"user_id": str(user.id)}, {"$set": {"rep": userinfo["rep"] + 1}}
+            )
             await ctx.send(
                 "**You have just given {} a reputation point!**".format(
                     await self._is_mention(user)
@@ -486,7 +490,7 @@ class Leveler(commands.Cog):
         # creates user if doesn't exist
         await self._create_user(user, server)
 
-        userinfo = db.users.find_one({"user_id": str(user.id)})
+        userinfo = await db.users.find_one({"user_id": str(user.id)})
         if "rep_block" not in userinfo:
             userinfo["rep_block"] = 0
 
@@ -513,7 +517,7 @@ class Leveler(commands.Cog):
                 return await ctx.send("**Purchase canceled.**")
 
             await bank.withdraw_credits(user, rep_price)
-            db.users.update_one(
+            await db.users.update_one(
                 {"user_id": str(user.id)}, {"$set": {"rep_block": (float(curr_time) - 43201.0)}}
             )
             await ctx.send("**You have reset your rep cooldown!**")
@@ -526,7 +530,7 @@ class Leveler(commands.Cog):
         if not user:
             user = ctx.author
         server = ctx.guild
-        userinfo = db.users.find_one({"user_id": str(user.id)})
+        userinfo = await db.users.find_one({"user_id": str(user.id)})
 
         if await self.config.guild(ctx.guild).disabled():
             await ctx.send("**Leveler commands for this server are disabled!**")
@@ -612,7 +616,7 @@ class Leveler(commands.Cog):
         server = ctx.guild
         # creates user if doesn't exist
         await self._create_user(user, server)
-        userinfo = db.users.find_one({"user_id": str(user.id)})
+        userinfo = await db.users.find_one({"user_id": str(user.id)})
 
         section = section.lower()
         default_info_color = (30, 30, 30, 200)
@@ -686,7 +690,7 @@ class Leveler(commands.Cog):
 
         if section == "all":
             if len(set_color) == 1:
-                db.users.update_one(
+                await db.users.update_one(
                     {"user_id": str(user.id)},
                     {
                         "$set": {
@@ -698,7 +702,7 @@ class Leveler(commands.Cog):
                     },
                 )
             elif color == "default":
-                db.users.update_one(
+                await db.users.update_one(
                     {"user_id": str(user.id)},
                     {
                         "$set": {
@@ -710,7 +714,7 @@ class Leveler(commands.Cog):
                     },
                 )
             elif color == "auto":
-                db.users.update_one(
+                await db.users.update_one(
                     {"user_id": str(user.id)},
                     {
                         "$set": {
@@ -724,7 +728,9 @@ class Leveler(commands.Cog):
             await ctx.send("**Colors for profile set.**")
         else:
             # print("update one")
-            db.users.update_one({"user_id": str(user.id)}, {"$set": {section_name: set_color[0]}})
+            await db.users.update_one(
+                {"user_id": str(user.id)}, {"$set": {section_name: set_color[0]}}
+            )
             await ctx.send("**Color for profile {} set.**".format(section))
 
     @rankset.command(name="color")
@@ -735,7 +741,7 @@ class Leveler(commands.Cog):
         server = ctx.guild
         # creates user if doesn't exist
         await self._create_user(user, server)
-        userinfo = db.users.find_one({"user_id": str(user.id)})
+        userinfo = await db.users.find_one({"user_id": str(user.id)})
 
         section = section.lower()
         default_info_color = (30, 30, 30, 200)
@@ -796,12 +802,12 @@ class Leveler(commands.Cog):
 
         if section == "all":
             if len(set_color) == 1:
-                db.users.update_one(
+                await db.users.update_one(
                     {"user_id": str(user.id)},
                     {"$set": {"rank_exp_color": set_color[0], "rank_info_color": set_color[0]}},
                 )
             elif color == "default":
-                db.users.update_one(
+                await db.users.update_one(
                     {"user_id": str(user.id)},
                     {
                         "$set": {
@@ -811,13 +817,15 @@ class Leveler(commands.Cog):
                     },
                 )
             elif color == "auto":
-                db.users.update_one(
+                await db.users.update_one(
                     {"user_id": str(user.id)},
                     {"$set": {"rank_exp_color": set_color[0], "rank_info_color": set_color[1]}},
                 )
             await ctx.send("**Colors for rank set.**")
         else:
-            db.users.update_one({"user_id": str(user.id)}, {"$set": {section_name: set_color[0]}})
+            await db.users.update_one(
+                {"user_id": str(user.id)}, {"$set": {section_name: set_color[0]}}
+            )
             await ctx.send("**Color for rank {} set.**".format(section))
 
     @levelupset.command(name="color")
@@ -828,7 +836,7 @@ class Leveler(commands.Cog):
         server = ctx.guild
         # creates user if doesn't exist
         await self._create_user(user, server)
-        userinfo = db.users.find_one({"user_id": str(user.id)})
+        userinfo = await db.users.find_one({"user_id": str(user.id)})
 
         section = section.lower()
         default_info_color = (30, 30, 30, 200)
@@ -871,7 +879,9 @@ class Leveler(commands.Cog):
             await ctx.send("**Not a valid color. (default, hex, white, auto)**")
             return
 
-        db.users.update_one({"user_id": str(user.id)}, {"$set": {section_name: set_color[0]}})
+        await db.users.update_one(
+            {"user_id": str(user.id)}, {"$set": {section_name: set_color[0]}}
+        )
         await ctx.send("**Color for level-up {} set.**".format(section))
 
     # uses k-means algorithm to find color from bg, rank is abundance of color, descending
@@ -955,7 +965,7 @@ class Leveler(commands.Cog):
             return
 
         if len(info) < max_char:
-            db.users.update_one({"user_id": str(user.id)}, {"$set": {"info": info}})
+            await db.users.update_one({"user_id": str(user.id)}, {"$set": {"info": info}})
             await ctx.send("**Your info section has been succesfully set!**")
         else:
             await ctx.send(
@@ -982,7 +992,7 @@ class Leveler(commands.Cog):
 
         if image_name in backgrounds["levelup"].keys():
             if await self._process_purchase(ctx):
-                db.users.update_one(
+                await db.users.update_one(
                     {"user_id": str(user.id)},
                     {"$set": {"levelup_background": backgrounds["levelup"][image_name]}},
                 )
@@ -1016,7 +1026,7 @@ class Leveler(commands.Cog):
 
         if image_name in backgrounds["profile"].keys():
             if await self._process_purchase(ctx):
-                db.users.update_one(
+                await db.users.update_one(
                     {"user_id": str(user.id)},
                     {"$set": {"profile_background": backgrounds["profile"][image_name]}},
                 )
@@ -1050,7 +1060,7 @@ class Leveler(commands.Cog):
 
         if image_name in backgrounds["rank"].keys():
             if await self._process_purchase(ctx):
-                db.users.update_one(
+                await db.users.update_one(
                     {"user_id": str(user.id)},
                     {"$set": {"rank_background": backgrounds["rank"][image_name]}},
                 )
@@ -1072,7 +1082,7 @@ class Leveler(commands.Cog):
         server = ctx.guild
         # creates user if doesn't exist
         await self._create_user(user, server)
-        userinfo = db.users.find_one({"user_id": str(user.id)})
+        userinfo = await db.users.find_one({"user_id": str(user.id)})
         max_char = 20
 
         if await self.config.guild(ctx.guild).disabled():
@@ -1081,7 +1091,7 @@ class Leveler(commands.Cog):
 
         if len(title) < max_char:
             userinfo["title"] = title
-            db.users.update_one({"user_id": str(user.id)}, {"$set": {"title": title}})
+            await db.users.update_one({"user_id": str(user.id)}, {"$set": {"title": title}})
             await ctx.send("**Your title has been succesfully set!**")
         else:
             await ctx.send("**Your title has too many characters! Must be <{}**".format(max_char))
@@ -1268,7 +1278,7 @@ class Leveler(commands.Cog):
         channel = ctx.channel
         # creates user if doesn't exist
         await self._create_user(user, server)
-        userinfo = db.users.find_one({"user_id": str(user.id)})
+        userinfo = await db.users.find_one({"user_id": str(user.id)})
 
         if await self.config.guild(ctx.guild).disabled():
             await ctx.send("Leveler commands for this server are disabled.")
@@ -1292,7 +1302,7 @@ class Leveler(commands.Cog):
         userinfo["servers"][str(server.id)]["level"] = level
         userinfo["total_exp"] += total_exp
 
-        db.users.update_one(
+        await db.users.update_one(
             {"user_id": str(user.id)},
             {
                 "$set": {
@@ -1439,7 +1449,7 @@ class Leveler(commands.Cog):
             em = discord.Embed(colour=await ctx.embed_color())
             em.set_author(name="{}".format(servername), icon_url=icon_url)
             msg = ""
-            server_badge_info = db.badges.find_one({"server_id": str(serverid)})
+            server_badge_info = await db.badges.find_one({"server_id": str(serverid)})
             if server_badge_info:
                 server_badges = server_badge_info["badges"]
                 if len(server_badges) >= 1:
@@ -1485,7 +1495,7 @@ class Leveler(commands.Cog):
             user = ctx.author
         server = ctx.guild
         await self._create_user(user, server)
-        userinfo = db.users.find_one({"user_id": str(user.id)})
+        userinfo = await db.users.find_one({"user_id": str(user.id)})
         userinfo = self._badge_convert_dict(userinfo)
 
         # sort
@@ -1536,9 +1546,9 @@ class Leveler(commands.Cog):
         else:
             serverid = server.id
         await self._create_user(user, server)
-        userinfo = db.users.find_one({"user_id": str(user.id)})
+        userinfo = await db.users.find_one({"user_id": str(user.id)})
         userinfo = self._badge_convert_dict(userinfo)
-        server_badge_info = db.badges.find_one({"server_id": str(serverid)})
+        server_badge_info = await db.badges.find_one({"server_id": str(serverid)})
 
         if server_badge_info:
             server_badges = server_badge_info["badges"]
@@ -1552,7 +1562,7 @@ class Leveler(commands.Cog):
                         userinfo["badges"]["{}_{}".format(name, str(serverid))] = server_badges[
                             name
                         ]
-                        db.users.update_one(
+                        await db.users.update_one(
                             {"user_id": userinfo["user_id"]},
                             {"$set": {"badges": userinfo["badges"]}},
                         )
@@ -1577,7 +1587,7 @@ class Leveler(commands.Cog):
                                 userinfo["badges"][
                                     "{}_{}".format(name, str(serverid))
                                 ] = server_badges[name]
-                                db.users.update_one(
+                                await db.users.update_one(
                                     {"user_id": userinfo["user_id"]},
                                     {"$set": {"badges": userinfo["badges"]}},
                                 )
@@ -1615,7 +1625,7 @@ class Leveler(commands.Cog):
         server = ctx.guild
         await self._create_user(user, server)
 
-        userinfo = db.users.find_one({"user_id": str(user.id)})
+        userinfo = await db.users.find_one({"user_id": str(user.id)})
         userinfo = self._badge_convert_dict(userinfo)
 
         if priority_num < -1 or priority_num > 5000:
@@ -1626,7 +1636,7 @@ class Leveler(commands.Cog):
             await asyncio.sleep(0)
             if userinfo["badges"][badge]["badge_name"] == name:
                 userinfo["badges"][badge]["priority_num"] = priority_num
-                db.users.update_one(
+                await db.users.update_one(
                     {"user_id": userinfo["user_id"]}, {"$set": {"badges": userinfo["badges"]}}
                 )
                 await ctx.send(
@@ -1640,7 +1650,7 @@ class Leveler(commands.Cog):
 
     def _badge_convert_dict(self, userinfo):
         if "badges" not in userinfo or not isinstance(userinfo["badges"], dict):
-            db.users.update_one({"user_id": userinfo["user_id"]}, {"$set": {"badges": {}}})
+            await db.users.update_one({"user_id": userinfo["user_id"]}, {"$set": {"badges": {}}})
         return db.users.find_one({"user_id": userinfo["user_id"]})
 
     @checks.mod_or_permissions(manage_roles=True)
@@ -1697,10 +1707,10 @@ class Leveler(commands.Cog):
             await ctx.send("**Description is too long! <=40**")
             return
 
-        badges = db.badges.find_one({"server_id": str(serverid)})
+        badges = await db.badges.find_one({"server_id": str(serverid)})
         if not badges:
-            db.badges.insert_one({"server_id": str(serverid), "badges": {}})
-            badges = db.badges.find_one({"server_id": str(serverid)})
+            await db.badges.insert_one({"server_id": str(serverid), "badges": {}})
+            badges = await db.badges.find_one({"server_id": str(serverid)})
 
         new_badge = {
             "badge_name": name,
@@ -1716,18 +1726,20 @@ class Leveler(commands.Cog):
         if name not in badges["badges"].keys():
             # create the badge regardless
             badges["badges"][name] = new_badge
-            db.badges.update_one(
+            await db.badges.update_one(
                 {"server_id": str(serverid)}, {"$set": {"badges": badges["badges"]}}
             )
             await ctx.send("**`{}` badge added in `{}` server.**".format(name, servername))
         else:
             # update badge in the server
             badges["badges"][name] = new_badge
-            db.badges.update_one({"server_id": serverid}, {"$set": {"badges": badges["badges"]}})
+            await db.badges.update_one(
+                {"server_id": serverid}, {"$set": {"badges": badges["badges"]}}
+            )
 
             # go though all users and update the badge.
             # Doing it this way because dynamic does more accesses when doing profile
-            for user in db.users.find({}):
+            async for user in db.users.find({}):
                 await asyncio.sleep(0)
                 try:
                     user = self._badge_convert_dict(user)
@@ -1739,7 +1751,7 @@ class Leveler(commands.Cog):
                             "priority_num"
                         ] = user_priority_num  # maintain old priority number set by user
                         userbadges[badge_name] = new_badge
-                        db.users.update_one(
+                        await db.users.update_one(
                             {"user_id": user["user_id"]}, {"$set": {"badges": userbadges}}
                         )
                 except:
@@ -1787,10 +1799,10 @@ class Leveler(commands.Cog):
             await ctx.send("Leveler commands for this server are disabled.")
             return
 
-        serverbadges = db.badges.find_one({"server_id": str(serverid)})
+        serverbadges = await db.badges.find_one({"server_id": str(serverid)})
         if name in serverbadges["badges"].keys():
             del serverbadges["badges"][name]
-            db.badges.update_one(
+            await db.badges.update_one(
                 {"server_id": serverbadges["server_id"]},
                 {"$set": {"badges": serverbadges["badges"]}},
             )
@@ -1809,7 +1821,7 @@ class Leveler(commands.Cog):
 
         # creates user if doesn't exist
         await self._create_user(user, server)
-        userinfo = db.users.find_one({"user_id": str(user.id)})
+        userinfo = await db.users.find_one({"user_id": str(user.id)})
         userinfo = self._badge_convert_dict(userinfo)
 
         if await self.config.guild(server).disabled():
@@ -1820,7 +1832,7 @@ class Leveler(commands.Cog):
             badgeserver = "global"
         else:
             badgeserver = ctx.guild.id
-        serverbadges = db.badges.find_one({"server_id": str(badgeserver)})
+        serverbadges = await db.badges.find_one({"server_id": str(badgeserver)})
         if serverbadges:
             badges = serverbadges["badges"]
         else:
@@ -1836,7 +1848,7 @@ class Leveler(commands.Cog):
         else:
             try:
                 userinfo["badges"][badge_name] = badges[name]
-                db.users.update_one(
+                await db.users.update_one(
                     {"user_id": str(user.id)}, {"$set": {"badges": userinfo["badges"]}}
                 )
                 await ctx.send(
@@ -1856,14 +1868,14 @@ class Leveler(commands.Cog):
         server = ctx.guild
         # creates user if doesn't exist
         await self._create_user(user, server)
-        userinfo = db.users.find_one({"user_id": str(user.id)})
+        userinfo = await db.users.find_one({"user_id": str(user.id)})
         userinfo = self._badge_convert_dict(userinfo)
 
         if await self.config.guild(server).disabled():
             await ctx.send("Leveler commands for this server are disabled.")
             return
 
-        serverbadges = db.badges.find_one({"server_id": str(server.id)})
+        serverbadges = await db.badges.find_one({"server_id": str(server.id)})
         badges = serverbadges["badges"]
         badge_name = "{}_{}".format(name, server.id)
 
@@ -1873,7 +1885,7 @@ class Leveler(commands.Cog):
             await ctx.send("**{} does not have that badge!**".format(await self._is_mention(user)))
         else:
             del userinfo["badges"][badge_name]
-            db.users.update_one(
+            await db.users.update_one(
                 {"user_id": str(user.id)}, {"$set": {"badges": userinfo["badges"]}}
             )
             await ctx.send(
@@ -1888,7 +1900,7 @@ class Leveler(commands.Cog):
     async def linkbadge(self, ctx, badge_name: str, level: int):
         """Associate a badge with a level."""
         server = ctx.guild
-        serverbadges = db.badges.find_one({"server_id": str(server.id)})
+        serverbadges = await db.badges.find_one({"server_id": str(server.id)})
 
         if serverbadges is None:
             await ctx.send("**This server does not have any badges!**")
@@ -1898,13 +1910,13 @@ class Leveler(commands.Cog):
             await ctx.send("**Please make sure the `{}` badge exists!**".format(badge_name))
             return
         else:
-            server_linked_badges = db.badgelinks.find_one({"server_id": str(server.id)})
+            server_linked_badges = await db.badgelinks.find_one({"server_id": str(server.id)})
             if not server_linked_badges:
                 new_server = {"server_id": str(server.id), "badges": {badge_name: str(level)}}
-                db.badgelinks.insert_one(new_server)
+                await db.badgelinks.insert_one(new_server)
             else:
                 server_linked_badges["badges"][badge_name] = str(level)
-                db.badgelinks.update_one(
+                await db.badgelinks.update_one(
                     {"server_id": str(server.id)},
                     {"$set": {"badges": server_linked_badges["badges"]}},
                 )
@@ -1919,7 +1931,7 @@ class Leveler(commands.Cog):
         """Unlink a badge/level association."""
         server = ctx.guild
 
-        server_linked_badges = db.badgelinks.find_one({"server_id": str(server.id)})
+        server_linked_badges = await db.badgelinks.find_one({"server_id": str(server.id)})
         badge_links = server_linked_badges["badges"]
 
         if badge_name in badge_links.keys():
@@ -1929,7 +1941,7 @@ class Leveler(commands.Cog):
                 )
             )
             del badge_links[badge_name]
-            db.badgelinks.update_one(
+            await db.badgelinks.update_one(
                 {"server_id": str(server.id)}, {"$set": {"badges": badge_links}}
             )
         else:
@@ -1943,7 +1955,7 @@ class Leveler(commands.Cog):
         """List badge/level associations."""
         server = ctx.guild
 
-        server_badges = db.badgelinks.find_one({"server_id": str(server.id)})
+        server_badges = await db.badgelinks.find_one({"server_id": str(server.id)})
 
         em = discord.Embed(colour=await ctx.embed_color())
         em.set_author(
@@ -1986,20 +1998,20 @@ class Leveler(commands.Cog):
                     )
                 )
         else:
-            server_roles = db.roles.find_one({"server_id": str(server.id)})
+            server_roles = await db.roles.find_one({"server_id": str(server.id)})
             if not server_roles:
                 new_server = {
                     "server_id": str(server.id),
                     "roles": {role_name: {"level": str(level), "remove_role": remove_role}},
                 }
-                db.roles.insert_one(new_server)
+                await db.roles.insert_one(new_server)
             else:
                 if role_name not in server_roles["roles"]:
                     server_roles["roles"][role_name] = {}
 
                 server_roles["roles"][role_name]["level"] = str(level)
                 server_roles["roles"][role_name]["remove_role"] = remove_role
-                db.roles.update_one(
+                await db.roles.update_one(
                     {"server_id": str(server.id)}, {"$set": {"roles": server_roles["roles"]}}
                 )
 
@@ -2019,7 +2031,7 @@ class Leveler(commands.Cog):
         """Unlink a role/level association."""
         server = ctx.guild
 
-        server_roles = db.roles.find_one({"server_id": str(server.id)})
+        server_roles = await db.roles.find_one({"server_id": str(server.id)})
         roles = server_roles["roles"]
 
         if role_name in roles:
@@ -2029,7 +2041,7 @@ class Leveler(commands.Cog):
                 )
             )
             del roles[role_name]
-            db.roles.update_one({"server_id": str(server.id)}, {"$set": {"roles": roles}})
+            await db.roles.update_one({"server_id": str(server.id)}, {"$set": {"roles": roles}})
         else:
             await ctx.send("**The `{}` role is not linked to any levels!**".format(role_name))
 
@@ -2041,7 +2053,7 @@ class Leveler(commands.Cog):
         server = ctx.guild
         user = ctx.author
 
-        server_roles = db.roles.find_one({"server_id": str(server.id)})
+        server_roles = await db.roles.find_one({"server_id": str(server.id)})
 
         em = discord.Embed(colour=await ctx.embed_color())
         em.set_author(
@@ -2128,7 +2140,7 @@ class Leveler(commands.Cog):
             return
 
         # test if valid user_id
-        userinfo = db.users.find_one({"user_id": str(user_id)})
+        userinfo = await db.users.find_one({"user_id": str(user_id)})
         if not userinfo:
             await ctx.send("**That is not a valid user id!**")
             return
@@ -2137,7 +2149,7 @@ class Leveler(commands.Cog):
             await ctx.send("**That is not a valid image url!**")
             return
 
-        db.users.update_one(
+        await db.users.update_one(
             {"user_id": str(user_id)}, {"$set": {"{}_background".format(type_input): img_url}}
         )
         await ctx.send("**User {} custom {} background set.**".format(user_id, bg_type))
@@ -2364,7 +2376,7 @@ class Leveler(commands.Cog):
                     write_pos += unicode_font.getsize(char)[0]
 
         # get urls
-        userinfo = db.users.find_one({"user_id": str(user.id)})
+        userinfo = await db.users.find_one({"user_id": str(user.id)})
         self._badge_convert_dict(userinfo)
         bg_url = userinfo["profile_background"]
         profile_url = user.avatar_url
@@ -2897,7 +2909,7 @@ class Leveler(commands.Cog):
                     draw.text((write_pos, y), "{}".format(char), font=unicode_font, fill=fill)
                     write_pos += unicode_font.getsize(char)[0]
 
-        userinfo = db.users.find_one({"user_id": str(user.id)})
+        userinfo = await db.users.find_one({"user_id": str(user.id)})
         # get urls
         bg_url = userinfo["rank_background"]
         server_icon_url = server.icon_url_as(format="png", size=256)
@@ -3168,7 +3180,7 @@ class Leveler(commands.Cog):
 
     async def draw_levelup(self, user, server):
         font_bold_file = f"{bundled_data_path(self)}/font_bold.ttf"
-        userinfo = db.users.find_one({"user_id": str(user.id)})
+        userinfo = await db.users.find_one({"user_id": str(user.id)})
         # get urls
         bg_url = userinfo["levelup_background"]
         profile_url = user.avatar_url
@@ -3283,18 +3295,17 @@ class Leveler(commands.Cog):
             return
         self._message_tasks.append([user, server, message])  # Add to task list
 
-    async def process_tasks(self): # Run all tasks and resets task list
+    async def process_tasks(self):  # Run all tasks and resets task list
         with contextlib.suppress(asyncio.CancelledError):
             while True:
                 tasks = copy(self._message_tasks)
                 self._message_tasks = []
                 await asyncio.gather(
-                    *[self._process_user_on_message(*a) for a in tasks],
-                    return_exceptions=True,
+                    *[self._process_user_on_message(*a) for a in tasks], return_exceptions=True,
                 )
                 await asyncio.sleep(60)
 
-    async def _process_user_on_message(self, user, server, message): # Process a users message
+    async def _process_user_on_message(self, user, server, message):  # Process a users message
         text = message.content
         curr_time = time.time()
         prefix = await self.bot.command_prefix(self.bot, message)
@@ -3309,13 +3320,13 @@ class Leveler(commands.Cog):
             userinfo["last_message"] = 0
         await asyncio.sleep(0)
         if all(
-                [
-                    float(curr_time) - float(userinfo["chat_block"]) >= 120,
-                    not any(text.startswith(x) for x in prefix),
-                    len(message.content) > 10,
-                    message.content != userinfo["last_message"],
-                    message.channel.id not in await self.config.guild(server).ignored_channels(),
-                ]
+            [
+                float(curr_time) - float(userinfo["chat_block"]) >= 120,
+                not any(text.startswith(x) for x in prefix),
+                len(message.content) > 10,
+                message.content != userinfo["last_message"],
+                message.channel.id not in await self.config.guild(server).ignored_channels(),
+            ]
         ):
             await asyncio.sleep(0)
             xp = await self.config.xp()
@@ -3330,7 +3341,7 @@ class Leveler(commands.Cog):
         # add to total exp
         required = self._required_exp(userinfo["servers"][str(server.id)]["level"])
         try:
-            db.users.update_one(
+            await db.users.update_one(
                 {"user_id": str(user.id)}, {"$set": {"total_exp": userinfo["total_exp"] + exp}}
             )
             await asyncio.sleep(0)
@@ -3339,7 +3350,7 @@ class Leveler(commands.Cog):
         if userinfo["servers"][str(server.id)]["current_exp"] + exp >= required:
             await asyncio.sleep(0)
             userinfo["servers"][str(server.id)]["level"] += 1
-            db.users.update_one(
+            await db.users.update_one(
                 {"user_id": str(user.id)},
                 {
                     "$set": {
@@ -3359,7 +3370,7 @@ class Leveler(commands.Cog):
             await asyncio.sleep(0)
             await self._handle_levelup(user, userinfo, server, channel)
         else:
-            db.users.update_one(
+            await db.users.update_one(
                 {"user_id": str(user.id)},
                 {
                     "$set": {
@@ -3389,7 +3400,7 @@ class Leveler(commands.Cog):
                 name = "You"
 
             new_level = str(userinfo["servers"][str(server.id)]["level"])
-            server_roles = db.roles.find_one({"server_id": str(server.id)})
+            server_roles = await db.roles.find_one({"server_id": str(server.id)})
             await asyncio.sleep(0)
             if server_roles is not None:
                 for role in server_roles["roles"].keys():
@@ -3425,24 +3436,24 @@ class Leveler(commands.Cog):
             # add appropriate badge if necessary
             await asyncio.sleep(0)
             try:
-                server_linked_badges = db.badgelinks.find_one({"server_id": str(server.id)})
+                server_linked_badges = await db.badgelinks.find_one({"server_id": str(server.id)})
                 if server_linked_badges is not None:
                     for badge_name in server_linked_badges["badges"]:
                         await asyncio.sleep(0)
                         if int(server_linked_badges["badges"][badge_name]) == int(new_level):
-                            server_badges = db.badges.find_one({"server_id": str(server.id)})
+                            server_badges = await db.badges.find_one({"server_id": str(server.id)})
                             await asyncio.sleep(0)
                             if (
                                 server_badges is not None
                                 and badge_name in server_badges["badges"].keys()
                             ):
                                 await asyncio.sleep(0)
-                                userinfo_db = db.users.find_one({"user_id": str(user.id)})
+                                userinfo_db = await db.users.find_one({"user_id": str(user.id)})
                                 new_badge_name = "{}_{}".format(badge_name, server.id)
                                 userinfo_db["badges"][new_badge_name] = server_badges["badges"][
                                     badge_name
                                 ]
-                                db.users.update_one(
+                                await db.users.update_one(
                                     {"user_id": str(user.id)},
                                     {"$set": {"badges": userinfo_db["badges"]}},
                                 )
@@ -3473,7 +3484,7 @@ class Leveler(commands.Cog):
         targetid = str(user.id)
         users = []
 
-        for userinfo in db.users.find({}):
+        async for userinfo in db.users.find({}):
             await asyncio.sleep(0)
             try:
                 server_exp = 0
@@ -3497,7 +3508,7 @@ class Leveler(commands.Cog):
     async def _find_server_rep_rank(self, user, server):
         targetid = str(user.id)
         users = []
-        for userinfo in db.users.find({}):
+        async for userinfo in db.users.find({}):
             await asyncio.sleep(0)
             userid = userinfo["user_id"]
             if "servers" in userinfo and server.id in userinfo["servers"]:
@@ -3514,7 +3525,7 @@ class Leveler(commands.Cog):
 
     async def _find_server_exp(self, user, server):
         server_exp = 0
-        userinfo = db.users.find_one({"user_id": str(user.id)})
+        userinfo = await db.users.find_one({"user_id": str(user.id)})
 
         try:
             for i in range(userinfo["servers"][str(server.id)]["level"]):
@@ -3528,7 +3539,7 @@ class Leveler(commands.Cog):
     async def _find_global_rank(self, user):
         users = []
 
-        for userinfo in db.users.find({}):
+        async for userinfo in db.users.find({}):
             await asyncio.sleep(0)
             try:
                 userid = userinfo["user_id"]
@@ -3547,7 +3558,7 @@ class Leveler(commands.Cog):
     async def _find_global_rep_rank(self, user):
         users = []
 
-        for userinfo in db.users.find({}):
+        async for userinfo in db.users.find({}):
             await asyncio.sleep(0)
             try:
                 userid = userinfo["user_id"]
@@ -3568,7 +3579,7 @@ class Leveler(commands.Cog):
         # backgrounds = await self.get_backgrounds()   ... This wasn't used here
         try:
             user_id = f"{user.id}"
-            userinfo = db.users.find_one({"user_id": user_id})
+            userinfo = await db.users.find_one({"user_id": user_id})
             if not userinfo:
                 default_profile = await self.config.default_profile()
                 default_rank = await self.config.default_rank()
@@ -3594,17 +3605,17 @@ class Leveler(commands.Cog):
                     "profile_block": 0,
                     "rank_block": 0,
                 }
-                db.users.insert_one(new_account)
+                await db.users.insert_one(new_account)
 
-            userinfo = db.users.find_one({"user_id": user_id})
+            userinfo = await db.users.find_one({"user_id": user_id})
 
             if "username" not in userinfo or userinfo["username"] != user.name:
-                db.users.update_one(
+                await db.users.update_one(
                     {"user_id": user_id}, {"$set": {"username": user.name}}, upsert=True
                 )
 
             if "servers" not in userinfo or str(server.id) not in userinfo["servers"]:
-                db.users.update_one(
+                await db.users.update_one(
                     {"user_id": user_id},
                     {
                         "$set": {
@@ -3702,7 +3713,7 @@ class Leveler(commands.Cog):
 
                 # creates user if doesn't exist
                 await self._create_user(user, server)
-                userinfo = db.users.find_one({"user_id": str(user.id)})
+                userinfo = await db.users.find_one({"user_id": str(user.id)})
 
                 # get rid of old level exp
                 old_server_exp = 0
@@ -3718,7 +3729,7 @@ class Leveler(commands.Cog):
                 userinfo["servers"][str(server.id)]["level"] = level
                 userinfo["total_exp"] += total_exp
 
-                db.users.update_one(
+                await db.users.update_one(
                     {"user_id": str(user.id)},
                     {
                         "$set": {
@@ -3761,14 +3772,14 @@ class Leveler(commands.Cog):
                         "server_id": str(server.id),
                         "roles": {role_name: {"level": str(level), "remove_role": remove_role}},
                     }
-                    db.roles.insert_one(new_server)
+                    await db.roles.insert_one(new_server)
                 else:
                     if role_name not in server_roles["roles"]:
                         server_roles["roles"][role_name] = {}
 
                     server_roles["roles"][role_name]["level"] = str(level)
                     server_roles["roles"][role_name]["remove_role"] = remove_role
-                    db.roles.update_one(
+                    await db.roles.update_one(
                         {"server_id": str(server.id)}, {"$set": {"roles": server_roles["roles"]}}
                     )
 
