@@ -3257,7 +3257,6 @@ class Leveler(commands.Cog):
             return
         if await self.config.guild(server).disabled():
             return
-
         self._message_tasks.append([user, server, message])  # Add to task list
 
     async def process_tasks(self): # Run all tasks and resets task list
@@ -3284,6 +3283,7 @@ class Leveler(commands.Cog):
             userinfo["chat_block"] = 0
         if "last_message" not in userinfo:
             userinfo["last_message"] = 0
+        await asyncio.sleep(0)
         if all(
                 [
                     float(curr_time) - float(userinfo["chat_block"]) >= 120,
@@ -3293,8 +3293,10 @@ class Leveler(commands.Cog):
                     message.channel.id not in await self.config.guild(server).ignored_channels(),
                 ]
         ):
+            await asyncio.sleep(0)
             xp = await self.config.xp()
             await self._process_exp(message, userinfo, random.randint(xp[0], xp[1]))
+            await asyncio.sleep(0)
             await self._give_chat_credit(user, server)
 
     async def _process_exp(self, message, userinfo, exp: int):
@@ -3307,9 +3309,11 @@ class Leveler(commands.Cog):
             db.users.update_one(
                 {"user_id": str(user.id)}, {"$set": {"total_exp": userinfo["total_exp"] + exp}}
             )
+            await asyncio.sleep(0)
         except:
             pass
         if userinfo["servers"][str(server.id)]["current_exp"] + exp >= required:
+            await asyncio.sleep(0)
             userinfo["servers"][str(server.id)]["level"] += 1
             db.users.update_one(
                 {"user_id": str(user.id)},
@@ -3328,6 +3332,7 @@ class Leveler(commands.Cog):
                     }
                 },
             )
+            await asyncio.sleep(0)
             await self._handle_levelup(user, userinfo, server, channel)
         else:
             db.users.update_one(
@@ -3361,11 +3366,15 @@ class Leveler(commands.Cog):
 
             new_level = str(userinfo["servers"][str(server.id)]["level"])
             server_roles = db.roles.find_one({"server_id": str(server.id)})
+            await asyncio.sleep(0)
             if server_roles is not None:
                 for role in server_roles["roles"].keys():
+                    await asyncio.sleep(0)
                     if int(server_roles["roles"][role]["level"]) == int(new_level):
+                        await asyncio.sleep(0)
                         add_role = discord.utils.get(server.roles, name=role)
                         if add_role is not None:
+                            await asyncio.sleep(0)
                             try:
                                 await user.add_roles(add_role, reason="Levelup")
                             except discord.Forbidden:
@@ -3378,6 +3387,7 @@ class Leveler(commands.Cog):
                             server.roles, name=server_roles["roles"][role]["remove_role"]
                         )
                         if remove_role is not None:
+                            await asyncio.sleep(0)
                             try:
                                 await user.remove_roles(remove_role, reason="Levelup")
                             except discord.Forbidden:
@@ -3389,16 +3399,20 @@ class Leveler(commands.Cog):
                         # await user.edit(roles=new_roles, reason="Levelup")
 
             # add appropriate badge if necessary
+            await asyncio.sleep(0)
             try:
                 server_linked_badges = db.badgelinks.find_one({"server_id": str(server.id)})
                 if server_linked_badges is not None:
                     for badge_name in server_linked_badges["badges"]:
+                        await asyncio.sleep(0)
                         if int(server_linked_badges["badges"][badge_name]) == int(new_level):
                             server_badges = db.badges.find_one({"server_id": str(server.id)})
+                            await asyncio.sleep(0)
                             if (
                                 server_badges is not None
                                 and badge_name in server_badges["badges"].keys()
                             ):
+                                await asyncio.sleep(0)
                                 userinfo_db = db.users.find_one({"user_id": str(user.id)})
                                 new_badge_name = "{}_{}".format(badge_name, server.id)
                                 userinfo_db["badges"][new_badge_name] = server_badges["badges"][
