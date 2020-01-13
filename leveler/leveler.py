@@ -3322,6 +3322,7 @@ class Leveler(commands.Cog):
                 self._message_tasks = []
                 for a in tasks:
                     await self._process_user_on_message(*a)
+                    await asyncio.sleep(0.1)
                 await asyncio.sleep(60)
 
     async def _process_user_on_message(self, user, server, message):  # Process a users message
