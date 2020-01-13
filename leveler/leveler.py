@@ -3258,7 +3258,7 @@ class Leveler(commands.Cog):
         if await self.config.guild(server).disabled():
             return
 
-        self._message_tasks.append(user, server, message)
+        self._message_tasks.append([user, server, message])
 
     async def process_tasks(self):
         with contextlib.suppress(asyncio.CancelledError):
