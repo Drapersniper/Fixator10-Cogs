@@ -3258,9 +3258,9 @@ class Leveler(commands.Cog):
         if await self.config.guild(server).disabled():
             return
 
-        self._message_tasks.append([user, server, message])
+        self._message_tasks.append([user, server, message])  # Add to task list
 
-    async def process_tasks(self):
+    async def process_tasks(self): # Run all tasks and resets task list
         with contextlib.suppress(asyncio.CancelledError):
             while True:
                 tasks = copy(self._message_tasks)
@@ -3271,7 +3271,7 @@ class Leveler(commands.Cog):
                 )
                 await asyncio.sleep(60)
 
-    async def _process_user_on_message(self, user, server, message):
+    async def _process_user_on_message(self, user, server, message): # Process a users message
         text = message.content
         curr_time = time.time()
         prefix = await self.bot.command_prefix(self.bot, message)
@@ -3518,7 +3518,7 @@ class Leveler(commands.Cog):
 
     # handles user creation, adding new server, blocking
     async def _create_user(self, user, server):
-        backgrounds = await self.get_backgrounds()
+        # backgrounds = await self.get_backgrounds()   ... This wasn't used here
         default_profile = await self.config.default_profile()
         default_rank = await self.config.default_rank()
         default_levelup = await self.config.default_levelup()
