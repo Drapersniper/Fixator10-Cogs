@@ -293,6 +293,7 @@ class Leveler(commands.Cog):
         if "-rep" in options and "-global" in options:
             title = "Global Rep Leaderboard for {}\n".format(self.bot.user.name)
             for userinfo in db.users.find({}):
+                await asyncio.sleep(0)
                 try:
                     users.append((userinfo["username"], userinfo["rep"]))
                 except:
@@ -309,6 +310,7 @@ class Leveler(commands.Cog):
         elif "-global" in options:
             title = "Global Exp Leaderboard for {}\n".format(self.bot.user.name)
             for userinfo in db.users.find({}):
+                await asyncio.sleep(0)
                 try:
                     users.append((userinfo["username"], userinfo["total_exp"]))
                 except:
@@ -325,6 +327,7 @@ class Leveler(commands.Cog):
         elif "-rep" in options:
             title = "Rep Leaderboard for {}\n".format(server.name)
             for userinfo in db.users.find({}):
+                await asyncio.sleep(0)
                 if "servers" in userinfo and str(server.id) in userinfo["servers"]:
                     try:
                         users.append((userinfo["username"], userinfo["rep"]))
@@ -342,10 +345,12 @@ class Leveler(commands.Cog):
         else:
             title = "Exp Leaderboard for {}\n".format(server.name)
             for userinfo in db.users.find({}):
+                await asyncio.sleep(0)
                 try:
                     if "servers" in userinfo and str(server.id) in userinfo["servers"]:
                         server_exp = 0
                         for i in range(userinfo["servers"][str(server.id)]["level"]):
+                            await asyncio.sleep(0)
                             server_exp += self._required_exp(i)
                         server_exp += userinfo["servers"][str(server.id)]["current_exp"]
                         try:
@@ -369,6 +374,7 @@ class Leveler(commands.Cog):
         pages = math.ceil(len(sorted_list) / per_page)
         for option in options:
             if str(option).isdigit():
+                await asyncio.sleep(0)
                 if page >= 1 and int(option) <= pages:
                     page = int(str(option))
                 else:
@@ -388,6 +394,7 @@ class Leveler(commands.Cog):
         special_labels = ["♔", "♕", "♖", "♗", "♘", "♙"]
 
         for single_user in sorted_list[start_index:end_index]:
+            await asyncio.sleep(0)
             if rank - 1 < len(special_labels):
                 label = special_labels[rank - 1]
             else:
@@ -534,6 +541,7 @@ class Leveler(commands.Cog):
         msg += "Server Level: {}\n".format(userinfo["servers"][str(server.id)]["level"])
         total_server_exp = 0
         for i in range(userinfo["servers"][str(server.id)]["level"]):
+            await asyncio.sleep(0)
             total_server_exp += self._required_exp(i)
         total_server_exp += userinfo["servers"][str(server.id)]["current_exp"]
         msg += "Server Exp: {}\n".format(total_server_exp)
@@ -653,6 +661,7 @@ class Leveler(commands.Cog):
             hex_colors = await self._auto_color(ctx, userinfo["profile_background"], color_ranks)
             set_color = []
             for hex_color in hex_colors:
+                await asyncio.sleep(0)
                 color_temp = self._hex_to_rgb(hex_color, default_a)
                 set_color.append(color_temp)
 
@@ -767,6 +776,7 @@ class Leveler(commands.Cog):
             hex_colors = await self._auto_color(ctx, userinfo["rank_background"], color_ranks)
             set_color = []
             for hex_color in hex_colors:
+                await asyncio.sleep(0)
                 color_temp = self._hex_to_rgb(hex_color, default_a)
                 set_color.append(color_temp)
         elif color == "white":
@@ -847,6 +857,7 @@ class Leveler(commands.Cog):
             hex_colors = await self._auto_color(ctx, userinfo["levelup_background"], color_ranks)
             set_color = []
             for hex_color in hex_colors:
+                await asyncio.sleep(0)
                 color_temp = self._hex_to_rgb(hex_color, default_a)
                 set_color.append(color_temp)
         elif color == "white":
@@ -888,12 +899,14 @@ class Leveler(commands.Cog):
         freq_index = []
         index = 0
         for count in counts:
+            await asyncio.sleep(0)
             freq_index.append((index, count))
             index += 1
         sorted_list = sorted(freq_index, key=operator.itemgetter(1), reverse=True)
 
         colors = []
         for rank in ranks:
+            await asyncio.sleep(0)
             color_index = min(rank, len(codes))
             peak = codes[sorted_list[color_index][0]]  # gets the original index
             peak = peak.astype(int)
@@ -1092,6 +1105,7 @@ class Leveler(commands.Cog):
         locked_channels = []
 
         for guild in self.bot.guilds:
+            await asyncio.sleep(0)
             if await self.config.guild(guild).disabled():
                 disabled_servers.append(guild.name)
             if await self.config.guild(guild).lvl_msg_lock():
@@ -1267,6 +1281,7 @@ class Leveler(commands.Cog):
         # get rid of old level exp
         old_server_exp = 0
         for i in range(userinfo["servers"][str(server.id)]["level"]):
+            await asyncio.sleep(0)
             old_server_exp += self._required_exp(i)
         userinfo["total_exp"] -= old_server_exp
         userinfo["total_exp"] -= userinfo["servers"][str(server.id)]["current_exp"]
@@ -1420,6 +1435,7 @@ class Leveler(commands.Cog):
         title_text = "**Available Badges**"
         index = 0
         for serverid, servername, icon_url in ids:
+            await asyncio.sleep(0)
             em = discord.Embed(colour=await ctx.embed_color())
             em.set_author(name="{}".format(servername), icon_url=icon_url)
             msg = ""
@@ -1428,6 +1444,7 @@ class Leveler(commands.Cog):
                 server_badges = server_badge_info["badges"]
                 if len(server_badges) >= 1:
                     for badgename in server_badges:
+                        await asyncio.sleep(0)
                         badgeinfo = server_badges[badgename]
                         if badgeinfo["price"] == -1:
                             price = "Non-purchasable"
@@ -1451,7 +1468,7 @@ class Leveler(commands.Cog):
             counter = 1
             for page in pagify(msg, ["\n"]):
                 if index == 0:
-                    await ctx.send(title_text, embed=em)
+                    await ctx.send(page, embed=em)
                 else:
                     await ctx.send(embed=em)
                 index += 1
@@ -1606,6 +1623,7 @@ class Leveler(commands.Cog):
             return
 
         for badge in userinfo["badges"]:
+            await asyncio.sleep(0)
             if userinfo["badges"][badge]["badge_name"] == name:
                 userinfo["badges"][badge]["priority_num"] = priority_num
                 db.users.update_one(
@@ -1710,6 +1728,7 @@ class Leveler(commands.Cog):
             # go though all users and update the badge.
             # Doing it this way because dynamic does more accesses when doing profile
             for user in db.users.find({}):
+                await asyncio.sleep(0)
                 try:
                     user = self._badge_convert_dict(user)
                     userbadges = user["badges"]
@@ -1937,6 +1956,7 @@ class Leveler(commands.Cog):
             badges = server_badges["badges"]
             msg = "**Badge** → Level\n"
             for badge in badges.keys():
+                await asyncio.sleep(0)
                 msg += "**• {} →** {}\n".format(badge, badges[badge])
 
         em.description = msg
@@ -2034,6 +2054,7 @@ class Leveler(commands.Cog):
             roles = server_roles["roles"]
             msg = "**Role** → Level\n"
             for role in roles:
+                await asyncio.sleep(0)
                 if roles[role]["remove_role"] is not None:
                     msg += "**• {} →** {} (Removes: {})\n".format(
                         role, roles[role]["level"], roles[role]["remove_role"]
@@ -2298,6 +2319,7 @@ class Leveler(commands.Cog):
             total = len(backgrounds[bg_key])
             cnt = 1
             for bg in sorted(backgrounds[bg_key].keys()):
+                await asyncio.sleep(0)
                 em = discord.Embed(
                     title=bg,
                     color=await ctx.embed_color(),
@@ -2334,6 +2356,7 @@ class Leveler(commands.Cog):
             write_pos = init_x
 
             for char in text:
+                await asyncio.sleep(0)
                 if char.isalnum() or char in string.punctuation or char in string.whitespace:
                     draw.text((write_pos, y), "{}".format(char), font=font, fill=fill)
                     write_pos += font.getsize(char)[0]
@@ -2615,6 +2638,7 @@ class Leveler(commands.Cog):
         margin = 105
         offset = 238
         for line in textwrap.wrap(userinfo["info"], width=42):
+            await asyncio.sleep(0)
             # draw.text((margin, offset), line, font=text_fnt, fill=(70,70,70,255))
             _write_unicode(line, margin, offset, text_fnt, text_u_fnt, info_text_color)
             offset += text_fnt.getsize(line)[1] + 2
@@ -2623,6 +2647,7 @@ class Leveler(commands.Cog):
         priority_badges = []
 
         for badgename in userinfo["badges"].keys():
+            await asyncio.sleep(0)
             badge = userinfo["badges"][badgename]
             priority_num = badge["priority_num"]
             if priority_num != 0 and priority_num != -1:
@@ -3450,6 +3475,7 @@ class Leveler(commands.Cog):
         users = []
 
         for userinfo in db.users.find({}):
+            await asyncio.sleep(0)
             try:
                 server_exp = 0
                 userid = userinfo["user_id"]
@@ -3464,6 +3490,7 @@ class Leveler(commands.Cog):
 
         rank = 1
         for a_user in sorted_list:
+            await asyncio.sleep(0)
             if a_user[0] == targetid:
                 return rank
             rank += 1
@@ -3472,6 +3499,7 @@ class Leveler(commands.Cog):
         targetid = str(user.id)
         users = []
         for userinfo in db.users.find({}):
+            await asyncio.sleep(0)
             userid = userinfo["user_id"]
             if "servers" in userinfo and server.id in userinfo["servers"]:
                 users.append((userinfo["user_id"], userinfo["rep"]))
@@ -3480,6 +3508,7 @@ class Leveler(commands.Cog):
 
         rank = 1
         for a_user in sorted_list:
+            await asyncio.sleep(0)
             if a_user[0] == targetid:
                 return rank
             rank += 1
@@ -3490,6 +3519,7 @@ class Leveler(commands.Cog):
 
         try:
             for i in range(userinfo["servers"][str(server.id)]["level"]):
+                await asyncio.sleep(0)
                 server_exp += self._required_exp(i)
             server_exp += userinfo["servers"][str(server.id)]["current_exp"]
             return server_exp
@@ -3500,6 +3530,7 @@ class Leveler(commands.Cog):
         users = []
 
         for userinfo in db.users.find({}):
+            await asyncio.sleep(0)
             try:
                 userid = userinfo["user_id"]
                 users.append((userid, userinfo["total_exp"]))
@@ -3509,6 +3540,7 @@ class Leveler(commands.Cog):
 
         rank = 1
         for stats in sorted_list:
+            await asyncio.sleep(0)
             if stats[0] == str(user.id):
                 return rank
             rank += 1
@@ -3517,6 +3549,7 @@ class Leveler(commands.Cog):
         users = []
 
         for userinfo in db.users.find({}):
+            await asyncio.sleep(0)
             try:
                 userid = userinfo["user_id"]
                 users.append((userid, userinfo["rep"]))
@@ -3526,6 +3559,7 @@ class Leveler(commands.Cog):
 
         rank = 1
         for stats in sorted_list:
+            await asyncio.sleep(0)
             if stats[0] == str(user.id):
                 return rank
             rank += 1
@@ -3644,6 +3678,7 @@ class Leveler(commands.Cog):
                 return await ctx.send("**Command cancelled.**")
         failed = 0
         for i in range(pages):
+            await asyncio.sleep(0)
             async with self.session.get(
                 f"https://mee6.xyz/api/plugins/levels/leaderboard/{ctx.guild.id}?page={i}&limit=999"
             ) as r:
@@ -3654,6 +3689,7 @@ class Leveler(commands.Cog):
                     return await ctx.send("No data was found within the Mee6 API.")
 
             for userdata in data["players"]:
+                await asyncio.sleep(0)
                 # _handle_levelup requires a Member
                 user = ctx.guild.get_member(int(userdata["id"]))
 
@@ -3672,6 +3708,7 @@ class Leveler(commands.Cog):
                 # get rid of old level exp
                 old_server_exp = 0
                 for i in range(userinfo["servers"][str(server.id)]["level"]):
+                    await asyncio.sleep(0)
                     old_server_exp += self._required_exp(i)
                 userinfo["total_exp"] -= old_server_exp
                 userinfo["total_exp"] -= userinfo["servers"][str(server.id)]["current_exp"]
@@ -3711,6 +3748,7 @@ class Leveler(commands.Cog):
         server = ctx.guild
         remove_role = None
         for role in data["role_rewards"]:
+            await asyncio.sleep(0)
             role_name = role["role"]["name"]
             level = role["rank"]
 
