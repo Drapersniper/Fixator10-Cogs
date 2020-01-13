@@ -2356,7 +2356,6 @@ class Leveler(commands.Cog):
             write_pos = init_x
 
             for char in text:
-                await asyncio.sleep(0)
                 if char.isalnum() or char in string.punctuation or char in string.whitespace:
                     draw.text((write_pos, y), "{}".format(char), font=font, fill=fill)
                     write_pos += font.getsize(char)[0]
@@ -2775,7 +2774,7 @@ class Leveler(commands.Cog):
                         f"{cog_data_path(self)}/{user.id}_temp_badge.png"
                     ).convert("RGBA")
 
-                    if border_color != None:
+                    if border_color is not None:
                         draw.rectangle(
                             [(left_pos, vert_pos + i * 17), (right_pos, vert_pos + 15 + i * 17)],
                             fill=border_color,
@@ -3707,9 +3706,9 @@ class Leveler(commands.Cog):
 
                 # get rid of old level exp
                 old_server_exp = 0
-                for i in range(userinfo["servers"][str(server.id)]["level"]):
+                for _i in range(userinfo["servers"][str(server.id)]["level"]):
                     await asyncio.sleep(0)
-                    old_server_exp += self._required_exp(i)
+                    old_server_exp += self._required_exp(_i)
                 userinfo["total_exp"] -= old_server_exp
                 userinfo["total_exp"] -= userinfo["servers"][str(server.id)]["current_exp"]
 
