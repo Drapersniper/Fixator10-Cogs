@@ -457,7 +457,7 @@ class Leveler(commands.Cog):
                 )
             )
         else:
-            # calulate time left
+            # calculate time left
             seconds = 43200 - delta
             if seconds < 0:
                 await ctx.send("**You can give a rep!**")
@@ -585,7 +585,8 @@ class Leveler(commands.Cog):
         )
         await ctx.send(embed=em)
 
-    def _rgb_to_hex(self, rgb):
+    @staticmethod
+    def _rgb_to_hex(rgb):
         rgb = tuple(rgb[:3])
         return "#%02x%02x%02x" % rgb
 
@@ -661,6 +662,8 @@ class Leveler(commands.Cog):
                 color_ranks = [random.randint(0, 1)]
             elif section == "all":
                 color_ranks = [random.randint(2, 3), random.randint(2, 3), 0, random.randint(0, 2)]
+            else:
+                return
 
             hex_colors = await self._auto_color(ctx, userinfo["profile_background"], color_ranks)
             set_color = []
@@ -682,6 +685,8 @@ class Leveler(commands.Cog):
                 set_color = [default_info_color]
             elif section == "all":
                 set_color = [default_exp, default_rep, default_badge, default_info_color]
+            else:
+                return
         elif self._is_hex(color):
             set_color = [self._hex_to_rgb(color, default_a)]
         else:
@@ -778,6 +783,8 @@ class Leveler(commands.Cog):
                 color_ranks = [random.randint(0, 1)]
             elif section == "all":
                 color_ranks = [random.randint(2, 3), random.randint(0, 1)]
+            else:
+                return
 
             hex_colors = await self._auto_color(ctx, userinfo["rank_background"], color_ranks)
             set_color = []
@@ -794,6 +801,8 @@ class Leveler(commands.Cog):
                 set_color = [default_info_color]
             elif section == "all":
                 set_color = [default_exp, default_rep, default_badge, default_info_color]
+            else:
+                return
         elif self._is_hex(color):
             set_color = [self._hex_to_rgb(color, default_a)]
         else:
@@ -862,6 +871,8 @@ class Leveler(commands.Cog):
         if color == "auto":
             if section == "info":
                 color_ranks = [random.randint(0, 1)]
+            else:
+                return
             hex_colors = await self._auto_color(ctx, userinfo["levelup_background"], color_ranks)
             set_color = []
             for hex_color in hex_colors:
@@ -873,6 +884,8 @@ class Leveler(commands.Cog):
         elif color == "default":
             if section == "info":
                 set_color = [default_info_color]
+            else:
+                return
         elif self._is_hex(color):
             set_color = [self._hex_to_rgb(color, default_a)]
         else:
@@ -925,7 +938,8 @@ class Leveler(commands.Cog):
         return colors  # returns array
 
     # converts hex to rgb
-    def _hex_to_rgb(self, hex_num: str, a: int):
+    @staticmethod
+    def _hex_to_rgb(hex_num: str, a: int):
         h = hex_num.lstrip("#")
 
         # if only 3 characters are given
@@ -938,7 +952,8 @@ class Leveler(commands.Cog):
         return tuple(colors)
 
     # dampens the color given a parameter
-    def _moderate_color(self, rgb, a, moderate_num):
+    @staticmethod
+    def _moderate_color(rgb, a, moderate_num):
         new_colors = []
         for color in rgb[:3]:
             if color > 128:
@@ -966,7 +981,7 @@ class Leveler(commands.Cog):
 
         if len(info) < max_char:
             await db.users.update_one({"user_id": str(user.id)}, {"$set": {"info": info}})
-            await ctx.send("**Your info section has been succesfully set!**")
+            await ctx.send("**Your info section has been successfully set!**")
         else:
             await ctx.send(
                 "**Your description has too many characters! Must be <{}**".format(max_char)
@@ -997,7 +1012,7 @@ class Leveler(commands.Cog):
                     {"$set": {"levelup_background": backgrounds["levelup"][image_name]}},
                 )
                 await ctx.send(
-                    "**Your new level-up background has been succesfully set!\nCalculate matching colors next by using** `{}lvlset levelup color info auto`".format(
+                    "**Your new level-up background has been successfully set!\nCalculate matching colors next by using** `{}lvlset levelup color info auto`".format(
                         ctx.prefix
                     )
                 )
@@ -1031,7 +1046,7 @@ class Leveler(commands.Cog):
                     {"$set": {"profile_background": backgrounds["profile"][image_name]}},
                 )
                 await ctx.send(
-                    "**Your new profile background has been succesfully set!\nCalculate matching colors next by using** `{}lvlset profile color all auto`".format(
+                    "**Your new profile background has been successfully set!\nCalculate matching colors next by using** `{}lvlset profile color all auto`".format(
                         ctx.prefix
                     )
                 )
@@ -1065,7 +1080,7 @@ class Leveler(commands.Cog):
                     {"$set": {"rank_background": backgrounds["rank"][image_name]}},
                 )
                 await ctx.send(
-                    "**Your new rank background has been succesfully set!\nCalculate matching colors next by using** `{}lvlset rank color all auto`".format(
+                    "**Your new rank background has been successfully set!\nCalculate matching colors next by using** `{}lvlset rank color all auto`".format(
                         ctx.prefix
                     )
                 )
@@ -1092,7 +1107,7 @@ class Leveler(commands.Cog):
         if len(title) < max_char:
             userinfo["title"] = title
             await db.users.update_one({"user_id": str(user.id)}, {"$set": {"title": title}})
-            await ctx.send("**Your title has been succesfully set!**")
+            await ctx.send("**Your title has been successfully set!**")
         else:
             await ctx.send("**Your title has too many characters! Must be <{}**".format(max_char))
 
@@ -1496,7 +1511,7 @@ class Leveler(commands.Cog):
         server = ctx.guild
         await self._create_user(user, server)
         userinfo = await db.users.find_one({"user_id": str(user.id)})
-        userinfo = self._badge_convert_dict(userinfo)
+        userinfo = await self._badge_convert_dict(userinfo)
 
         # sort
         priority_badges = []
@@ -1547,7 +1562,7 @@ class Leveler(commands.Cog):
             serverid = server.id
         await self._create_user(user, server)
         userinfo = await db.users.find_one({"user_id": str(user.id)})
-        userinfo = self._badge_convert_dict(userinfo)
+        userinfo = await self._badge_convert_dict(userinfo)
         server_badge_info = await db.badges.find_one({"server_id": str(serverid)})
 
         if server_badge_info:
@@ -1626,7 +1641,7 @@ class Leveler(commands.Cog):
         await self._create_user(user, server)
 
         userinfo = await db.users.find_one({"user_id": str(user.id)})
-        userinfo = self._badge_convert_dict(userinfo)
+        userinfo = await self._badge_convert_dict(userinfo)
 
         if priority_num < -1 or priority_num > 5000:
             await ctx.send("**Invalid priority number! -1 to 5000.**")
@@ -1648,7 +1663,8 @@ class Leveler(commands.Cog):
         else:
             await ctx.send("**You don't have that badge!**")
 
-    def _badge_convert_dict(self, userinfo):
+    @staticmethod
+    async def _badge_convert_dict(userinfo):
         if "badges" not in userinfo or not isinstance(userinfo["badges"], dict):
             await db.users.update_one({"user_id": userinfo["user_id"]}, {"$set": {"badges": {}}})
         return db.users.find_one({"user_id": userinfo["user_id"]})
@@ -1742,7 +1758,7 @@ class Leveler(commands.Cog):
             async for user in db.users.find({}):
                 await asyncio.sleep(0)
                 try:
-                    user = self._badge_convert_dict(user)
+                    user = await self._badge_convert_dict(user)
                     userbadges = user["badges"]
                     badge_name = "{}_{}".format(name, serverid)
                     if badge_name in userbadges.keys():
@@ -1771,7 +1787,8 @@ class Leveler(commands.Cog):
         await self.config.badge_type.set(name.lower())
         await ctx.send("**Badge type set to `{}`.**".format(name.lower()))
 
-    def _is_hex(self, color: str):
+    @staticmethod
+    def _is_hex(color: str):
         if color is not None and len(color) != 4 and len(color) != 7:
             return False
 
@@ -1822,7 +1839,7 @@ class Leveler(commands.Cog):
         # creates user if doesn't exist
         await self._create_user(user, server)
         userinfo = await db.users.find_one({"user_id": str(user.id)})
-        userinfo = self._badge_convert_dict(userinfo)
+        userinfo = await self._badge_convert_dict(userinfo)
 
         if await self.config.guild(server).disabled():
             await ctx.send("Leveler commands for this server are disabled.")
@@ -1869,7 +1886,7 @@ class Leveler(commands.Cog):
         # creates user if doesn't exist
         await self._create_user(user, server)
         userinfo = await db.users.find_one({"user_id": str(user.id)})
-        userinfo = self._badge_convert_dict(userinfo)
+        userinfo = await self._badge_convert_dict(userinfo)
 
         if await self.config.guild(server).disabled():
             await ctx.send("Leveler commands for this server are disabled.")
@@ -2377,7 +2394,7 @@ class Leveler(commands.Cog):
 
         # get urls
         userinfo = await db.users.find_one({"user_id": str(user.id)})
-        self._badge_convert_dict(userinfo)
+        await self._badge_convert_dict(userinfo)
         bg_url = userinfo["profile_background"]
         profile_url = user.avatar_url
 
@@ -2833,7 +2850,8 @@ class Leveler(commands.Cog):
         else:
             return color2
 
-    def _luminance(self, color):
+    @staticmethod
+    def _luminance(color):
         # convert to greyscale
         luminance = float((0.2126 * color[0]) + (0.7152 * color[1]) + (0.0722 * color[2]))
         return luminance
@@ -2858,8 +2876,9 @@ class Leveler(commands.Cog):
                 max_length,
             )
 
+    @staticmethod
     async def _add_dropshadow(
-        self, image, offset=(4, 4), background=0x000, shadow=0x0F0, border=3, iterations=5
+        image, offset=(4, 4), background=0x000, shadow=0x0F0, border=3, iterations=5
     ):
         totalWidth = image.size[0] + abs(offset[0]) + 2 * border
         totalHeight = image.size[1] + abs(offset[1]) + 2 * border
@@ -3162,7 +3181,8 @@ class Leveler(commands.Cog):
         result = Image.alpha_composite(result, process)
         result.save(f"{cog_data_path(self)}/{user.id}_rank.png", "PNG", quality=100)
 
-    def _add_corners(self, im, rad, multiplier=6):
+    @staticmethod
+    def _add_corners(im, rad, multiplier=6):
         raw_length = rad * 2 * multiplier
         circle = Image.new("L", (raw_length, raw_length), 0)
         draw = ImageDraw.Draw(circle)
@@ -3301,7 +3321,7 @@ class Leveler(commands.Cog):
                 tasks = copy(self._message_tasks)
                 self._message_tasks = []
                 await asyncio.gather(
-                    *[self._process_user_on_message(*a) for a in tasks], return_exceptions=True,
+                    *[self._process_user_on_message(*a) for a in tasks], return_exceptions=True
                 )
                 await asyncio.sleep(60)
 
@@ -3505,7 +3525,8 @@ class Leveler(commands.Cog):
                 return rank
             rank += 1
 
-    async def _find_server_rep_rank(self, user, server):
+    @staticmethod
+    async def _find_server_rep_rank(user, server):
         targetid = str(user.id)
         users = []
         async for userinfo in db.users.find({}):
@@ -3536,7 +3557,8 @@ class Leveler(commands.Cog):
         except:
             return server_exp
 
-    async def _find_global_rank(self, user):
+    @staticmethod
+    async def _find_global_rank(user):
         users = []
 
         async for userinfo in db.users.find({}):
@@ -3555,7 +3577,8 @@ class Leveler(commands.Cog):
                 return rank
             rank += 1
 
-    async def _find_global_rep_rank(self, user):
+    @staticmethod
+    async def _find_global_rep_rank(user):
         users = []
 
         async for userinfo in db.users.find({}):
@@ -3629,7 +3652,8 @@ class Leveler(commands.Cog):
         except AttributeError:
             pass
 
-    def _truncate_text(self, text, max_length):
+    @staticmethod
+    def _truncate_text(text, max_length):
         if len(text) > max_length:
             if text.strip("$").isdigit():
                 text = int(text.strip("$"))
@@ -3638,26 +3662,31 @@ class Leveler(commands.Cog):
         return text
 
     # finds the the pixel to center the text
-    def _center(self, start, end, text, font):
+    @staticmethod
+    def _center(start, end, text, font):
         dist = end - start
         width = font.getsize(text)[0]
         start_pos = start + ((dist - width) / 2)
         return int(start_pos)
 
     # calculates required exp for next level
-    def _required_exp(self, level: int):
+    @staticmethod
+    def _required_exp(level: int):
         if level < 0:
             return 0
         return 139 * level + 65
 
-    def _level_exp(self, level: int):
+    @staticmethod
+    def _level_exp(level: int):
         return level * 65 + 139 * level * (level - 1) // 2
 
-    def _find_level(self, total_exp):
+    @staticmethod
+    def _find_level(total_exp):
         # this is specific to the function above
         return int((1 / 278) * (9 + math.sqrt(81 + 1112 * total_exp)))
 
-    def char_in_font(self, unicode_char, font):
+    @staticmethod
+    def char_in_font(unicode_char, font):
         for cmap in font["cmap"].tables:
             if cmap.isUnicode():
                 if ord(unicode_char) in cmap.cmap:
@@ -3762,7 +3791,7 @@ class Leveler(commands.Cog):
             role_name = role["role"]["name"]
             level = role["rank"]
 
-            role_obj = discord.utils.find(lambda r: r.name == role_name, server.roles)
+            role_obj = discord.utils.find(lambda rol: rol.name == role_name, server.roles)
             if role_obj is None:
                 await ctx.send("**Please make sure the `{}` roles exist!**".format(role_name))
             else:
