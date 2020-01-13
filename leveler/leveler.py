@@ -401,10 +401,10 @@ class Leveler(commands.Cog):
                 label = default_label
 
             msg += "{:<2}{:<2}{:<2} # {:<11}".format(
-                rank, label, "➤", self._truncate_text(single_user[0], 11)
+                rank, label, "➤", " {}: ".format(board_type) + str(single_user[1])
             )
             msg += "{:>5}{:<2}{:<2}{:<5}\n".format(
-                " ", " ", " ", " {}: ".format(board_type) + str(single_user[1])
+                " ", " ", " ", self._truncate_text(single_user[0], 11)
             )
             rank += 1
         msg += "--------------------------------------------            \n"
@@ -3320,9 +3320,8 @@ class Leveler(commands.Cog):
             while True:
                 tasks = copy(self._message_tasks)
                 self._message_tasks = []
-                await asyncio.gather(
-                    *[self._process_user_on_message(*a) for a in tasks], return_exceptions=True
-                )
+                for a in tasks:
+                    await self._process_user_on_message(*a)
                 await asyncio.sleep(60)
 
     async def _process_user_on_message(self, user, server, message):  # Process a users message
