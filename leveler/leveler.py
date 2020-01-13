@@ -3276,9 +3276,9 @@ class Leveler(commands.Cog):
         curr_time = time.time()
         prefix = await self.bot.command_prefix(self.bot, message)
         # creates user if doesn't exist, bots are not logged.
-        await self._create_user(user, server)
-
-        userinfo = db.users.find_one({"user_id": str(user.id)})
+        userinfo = await self._create_user(user, server)
+        if not userinfo:
+            return
         # check if chat_block exists
         if "chat_block" not in userinfo:
             userinfo["chat_block"] = 0
@@ -3519,15 +3519,15 @@ class Leveler(commands.Cog):
     # handles user creation, adding new server, blocking
     async def _create_user(self, user, server):
         # backgrounds = await self.get_backgrounds()   ... This wasn't used here
-        default_profile = await self.config.default_profile()
-        default_rank = await self.config.default_rank()
-        default_levelup = await self.config.default_levelup()
-
         try:
-            userinfo = db.users.find_one({"user_id": str(user.id)})
+            user_id = f"{user.id}"
+            userinfo = db.users.find_one({"user_id": user_id})
             if not userinfo:
+                default_profile = await self.config.default_profile()
+                default_rank = await self.config.default_rank()
+                default_levelup = await self.config.default_levelup()
                 new_account = {
-                    "user_id": str(user.id),
+                    "user_id": user_id,
                     "username": user.name,
                     "servers": {},
                     "total_exp": 0,
@@ -3549,24 +3549,25 @@ class Leveler(commands.Cog):
                 }
                 db.users.insert_one(new_account)
 
-            userinfo = db.users.find_one({"user_id": str(user.id)})
+            userinfo = db.users.find_one({"user_id": user_id})
 
             if "username" not in userinfo or userinfo["username"] != user.name:
                 db.users.update_one(
-                    {"user_id": str(user.id)}, {"$set": {"username": user.name}}, upsert=True
+                    {"user_id": user_id}, {"$set": {"username": user.name}}, upsert=True
                 )
 
             if "servers" not in userinfo or str(server.id) not in userinfo["servers"]:
                 db.users.update_one(
-                    {"user_id": str(user.id)},
+                    {"user_id": user_id},
                     {
                         "$set": {
-                            "servers.{}.level".format(server.id): 0,
-                            "servers.{}.current_exp".format(server.id): 0,
+                            f"servers.{server.id}.level": 0,
+                            f"servers.{server.id}.current_exp": 0,
                         }
                     },
                     upsert=True,
                 )
+            return userinfo
         except AttributeError:
             pass
 
