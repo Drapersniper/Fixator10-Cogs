@@ -1,4 +1,8 @@
+import asyncio
+import contextlib
 import math
+from copy import copy
+
 import numpy
 import operator
 import os
@@ -13,7 +17,6 @@ import string
 import textwrap
 import time
 from asyncio import TimeoutError
-from pathlib import Path
 from io import BytesIO
 
 import aiohttp
@@ -67,9 +70,13 @@ class Leveler(commands.Cog):
         self.config.register_global(**default_global)
         self.config.register_guild(**default_guild)
         self.session = aiohttp.ClientSession(loop=self.bot.loop)
+        self._message_tasks = []
+        self._message_task_processor = asyncio.create_task(self.process_tasks())
 
     def cog_unload(self):
         self.bot.loop.create_task(self.session.close())
+        if self._message_task_processor:
+            self._message_task_processor.cancel()
 
     @property
     def DEFAULT_BGS(self):
@@ -3244,35 +3251,47 @@ class Leveler(commands.Cog):
 
     @commands.Cog.listener("on_message_without_command")
     async def _handle_on_message(self, message):
-        text = message.content
-        channel = message.channel
         server = message.guild
         user = message.author
+        if not server or user.bot:
+            return
+        if await self.config.guild(server).disabled():
+            return
+
+        self._message_tasks.append(user, server, message)
+
+    async def process_tasks(self):
+        with contextlib.suppress(asyncio.CancelledError):
+            while True:
+                tasks = copy(self._message_tasks)
+                self._message_tasks = []
+                await asyncio.gather(
+                    *[self._process_user_on_message(*a) for a in tasks],
+                    return_exceptions=True,
+                )
+                await asyncio.sleep(60)
+
+    async def _process_user_on_message(self, user, server, message):
+        text = message.content
+        curr_time = time.time()
         prefix = await self.bot.command_prefix(self.bot, message)
         # creates user if doesn't exist, bots are not logged.
         await self._create_user(user, server)
-        curr_time = time.time()
+
         userinfo = db.users.find_one({"user_id": str(user.id)})
-
-        if not server or await self.config.guild(server).disabled():
-            return
-        if user.bot:
-            return
-
         # check if chat_block exists
         if "chat_block" not in userinfo:
             userinfo["chat_block"] = 0
-
         if "last_message" not in userinfo:
             userinfo["last_message"] = 0
         if all(
-            [
-                float(curr_time) - float(userinfo["chat_block"]) >= 120,
-                not any(text.startswith(x) for x in prefix),
-                len(message.content) > 10,
-                message.content != userinfo["last_message"],
-                message.channel.id not in await self.config.guild(server).ignored_channels(),
-            ]
+                [
+                    float(curr_time) - float(userinfo["chat_block"]) >= 120,
+                    not any(text.startswith(x) for x in prefix),
+                    len(message.content) > 10,
+                    message.content != userinfo["last_message"],
+                    message.channel.id not in await self.config.guild(server).ignored_channels(),
+                ]
         ):
             xp = await self.config.xp()
             await self._process_exp(message, userinfo, random.randint(xp[0], xp[1]))
