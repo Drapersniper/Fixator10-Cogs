@@ -1,27 +1,26 @@
 import asyncio
 import contextlib
 import math
-from copy import copy
-
-import numpy
 import operator
 import os
-from PIL import Image, ImageDraw, ImageFont, ImageColor, ImageOps, ImageFilter
 import platform
-from motor.motor_asyncio import AsyncIOMotorClient
 import random
 import re
-import scipy
-import scipy.cluster
 import string
 import textwrap
 import time
 from asyncio import TimeoutError
+from copy import copy
 from io import BytesIO
 
 import aiohttp
 import discord
+import numpy
+import scipy
+import scipy.cluster
+from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageFilter
 from discord.utils import find
+from motor.motor_asyncio import AsyncIOMotorClient
 from redbot.core import bank, checks, commands, Config
 from redbot.core.data_manager import bundled_data_path, cog_data_path
 from redbot.core.utils.chat_formatting import pagify, box
@@ -191,22 +190,20 @@ class Leveler(commands.Cog):
         em = discord.Embed(colour=user.colour)
         em.add_field(name="Title:", value=test_empty(userinfo["title"]))
         em.add_field(name="Reps:", value=userinfo["rep"])
-        em.add_field(name="Global Rank:", value="#{}".format(await self._find_global_rank(user)))
-        em.add_field(
-            name="Server Rank:", value="#{}".format(await self._find_server_rank(user, server))
-        )
+        em.add_field(name="Global Rank:", value=f"#{await self._find_global_rank(user)}")
+        em.add_field(name="Server Rank:", value=f"#{await self._find_server_rank(user, server)}")
         em.add_field(
             name="Server Level:", value=format(userinfo["servers"][str(server.id)]["level"])
         )
         em.add_field(name="Total Exp:", value=userinfo["total_exp"])
         em.add_field(name="Server Exp:", value=await self._find_server_exp(user, server))
         u_credits = await bank.get_balance(user)
-        em.add_field(name="Credits: ", value="${}".format(u_credits))
+        em.add_field(name="Credits: ", value=f"${u_credits}")
         em.add_field(name="Info: ", value=test_empty(userinfo["info"]))
         em.add_field(
             name="Badges: ", value=test_empty(", ".join(userinfo["badges"])).replace("_", " ")
         )
-        em.set_author(name="Profile for {}".format(user.name), url=user.avatar_url)
+        em.set_author(name=f"Profile for {user.name}", url=user.avatar_url)
         em.set_thumbnail(url=user.avatar_url)
         return em
 
@@ -242,8 +239,7 @@ class Leveler(commands.Cog):
                     f"{cog_data_path(self)}/{user.id}_rank.png", filename="rank.png"
                 )
                 await ctx.send(
-                    "**Ranking & Statistics for {}**".format(await self._is_mention(user)),
-                    file=file,
+                    f"**Ranking & Statistics for {await self._is_mention(user)}**", file=file,
                 )
             await db.users.update_one(
                 {"user_id": str(user.id)},
@@ -257,13 +253,11 @@ class Leveler(commands.Cog):
 
     async def rank_text(self, user, server, userinfo):
         em = discord.Embed(colour=user.colour)
-        em.add_field(
-            name="Server Rank", value="#{}".format(await self._find_server_rank(user, server))
-        )
+        em.add_field(name="Server Rank", value=f"#{await self._find_server_rank(user, server)}")
         em.add_field(name="Reps", value=userinfo["rep"])
         em.add_field(name="Server Level", value=userinfo["servers"][str(server.id)]["level"])
         em.add_field(name="Server Exp", value=await self._find_server_exp(user, server))
-        em.set_author(name="Rank and Statistics for {}".format(user.name), url=user.avatar_url)
+        em.set_author(name=f"Rank and Statistics for {user.name}", url=user.avatar_url)
         em.set_thumbnail(url=user.avatar_url)
         return em
 
@@ -291,7 +285,7 @@ class Leveler(commands.Cog):
         users = []
         user_stat = None
         if "-rep" in options and "-global" in options:
-            title = "Global Rep Leaderboard for {}\n".format(self.bot.user.name)
+            title = f"Global Rep Leaderboard for {self.bot.user.name}\n"
             async for userinfo in db.users.find({}):
                 await asyncio.sleep(0)
                 try:
@@ -385,7 +379,7 @@ class Leveler(commands.Cog):
                 break
 
         msg = ""
-        msg += "Rank     Name                   (Page {}/{})     \n\n".format(page, pages)
+        msg += f"Rank     Name                   (Page {page}/{pages})     \n\n"
         rank = 1 + per_page * (page - 1)
         start_index = per_page * page - per_page
         end_index = per_page * page
@@ -408,7 +402,7 @@ class Leveler(commands.Cog):
             )
             rank += 1
         msg += "--------------------------------------------            \n"
-        msg += "{}".format(footer_text)
+        msg += f"{footer_text}"
 
         em = discord.Embed(description="", colour=user.colour)
         em.set_author(name=title, icon_url=icon_url)
@@ -539,50 +533,40 @@ class Leveler(commands.Cog):
         # creates user if doesn't exist
         await self._create_user(user, server)
         msg = ""
-        msg += "Name: {}\n".format(user.name)
-        msg += "Title: {}\n".format(userinfo["title"])
-        msg += "Reps: {}\n".format(userinfo["rep"])
-        msg += "Server Level: {}\n".format(userinfo["servers"][str(server.id)]["level"])
+        msg += f"Name: {user.name}\n"
+        msg += f"Title: {userinfo['title']}\n"
+        msg += f"Reps: {userinfo['rep']}\n"
+        msg += f"Server Level: {userinfo['servers'][str(server.id)]['level']}\n"
         total_server_exp = 0
         for i in range(userinfo["servers"][str(server.id)]["level"]):
             await asyncio.sleep(0)
             total_server_exp += self._required_exp(i)
         total_server_exp += userinfo["servers"][str(server.id)]["current_exp"]
-        msg += "Server Exp: {}\n".format(total_server_exp)
-        msg += "Total Exp: {}\n".format(userinfo["total_exp"])
-        msg += "Info: {}\n".format(userinfo["info"])
-        msg += "Profile background: {}\n".format(userinfo["profile_background"])
-        msg += "Rank background: {}\n".format(userinfo["rank_background"])
-        msg += "Levelup background: {}\n".format(userinfo["levelup_background"])
+        msg += f"Server Exp: {total_server_exp}\n"
+        msg += f"Total Exp: {userinfo['total_exp']}\n"
+        msg += f"Info: {userinfo['info']}\n"
+        msg += f"Profile background: {userinfo['profile_background']}\n"
+        msg += f"Rank background: {userinfo['rank_background']}\n"
+        msg += f"Levelup background: {userinfo['levelup_background']}\n"
         if "profile_info_color" in userinfo.keys() and userinfo["profile_info_color"]:
-            msg += "Profile info color: {}\n".format(
-                self._rgb_to_hex(userinfo["profile_info_color"])
-            )
+            msg += f"Profile info color: {self._rgb_to_hex(userinfo['profile_info_color'])}\n"
         if "profile_exp_color" in userinfo.keys() and userinfo["profile_exp_color"]:
-            msg += "Profile exp color: {}\n".format(
-                self._rgb_to_hex(userinfo["profile_exp_color"])
-            )
+            msg += f"Profile exp color: {self._rgb_to_hex(userinfo['profile_exp_color'])}\n"
         if "rep_color" in userinfo.keys() and userinfo["rep_color"]:
-            msg += "Rep section color: {}\n".format(self._rgb_to_hex(userinfo["rep_color"]))
+            msg += f"Rep section color: {self._rgb_to_hex(userinfo['rep_color'])}\n"
         if "badge_col_color" in userinfo.keys() and userinfo["badge_col_color"]:
-            msg += "Badge section color: {}\n".format(
-                self._rgb_to_hex(userinfo["badge_col_color"])
-            )
+            msg += f"Badge section color: {self._rgb_to_hex(userinfo['badge_col_color'])}\n"
         if "rank_info_color" in userinfo.keys() and userinfo["rank_info_color"]:
-            msg += "Rank info color: {}\n".format(self._rgb_to_hex(userinfo["rank_info_color"]))
+            msg += f"Rank info color: {self._rgb_to_hex(userinfo['rank_info_color'])}\n"
         if "rank_exp_color" in userinfo.keys() and userinfo["rank_exp_color"]:
-            msg += "Rank exp color: {}\n".format(self._rgb_to_hex(userinfo["rank_exp_color"]))
+            msg += f"Rank exp color: {self._rgb_to_hex(userinfo['rank_exp_color'])}\n"
         if "levelup_info_color" in userinfo.keys() and userinfo["levelup_info_color"]:
-            msg += "Level info color: {}\n".format(
-                self._rgb_to_hex(userinfo["levelup_info_color"])
-            )
+            msg += f"Level info color: {self._rgb_to_hex(userinfo['levelup_info_color'])}\n"
         msg += "Badges: "
         msg += ", ".join(userinfo["badges"])
 
         em = discord.Embed(description=msg, colour=user.colour)
-        em.set_author(
-            name="Profile Information for {}".format(user.name), icon_url=user.avatar_url
-        )
+        em.set_author(name=f"Profile Information for {user.name}", icon_url=user.avatar_url)
         await ctx.send(embed=em)
 
     @staticmethod
@@ -1123,7 +1107,7 @@ class Leveler(commands.Cog):
     @lvladmin.group(invoke_without_command=True)
     async def overview(self, ctx):
         """A list of settings."""
-        user = ctx.author
+        # user = ctx.author
         disabled_servers = []
         private_levels = []
         disabled_levels = []
@@ -1145,7 +1129,7 @@ class Leveler(commands.Cog):
             if await self.config.guild(guild).private_lvl_message():
                 private_levels.append(guild.name)
 
-        num_users = len(list(db.users.find({})))
+        num_users = len(list(await db.users.find({})))
 
         default_profile = await self.config.default_profile()
         default_rank = await self.config.default_rank()
@@ -1228,7 +1212,7 @@ class Leveler(commands.Cog):
 
     async def _process_purchase(self, ctx):
         user = ctx.author
-        server = ctx.guild
+        # server = ctx.guild
         bg_price = await self.config.bg_price()
         if bg_price != 0:
             if not await bank.can_spend(user, bg_price):
@@ -1350,7 +1334,7 @@ class Leveler(commands.Cog):
                 image = await r.content.read()
             with open(f"{cog_data_path(self)}/test.png", "wb") as f:
                 f.write(image)
-            image = Image.open(f"{cog_data_path(self)}/test.png").convert("RGBA")
+            Image.open(f"{cog_data_path(self)}/test.png").convert("RGBA")
             os.remove(f"{cog_data_path(self)}/test.png")
             return True
         except:
@@ -1388,7 +1372,7 @@ class Leveler(commands.Cog):
     async def lvlalert(self, ctx):
         """Toggle level-up messages on the server."""
         server = ctx.guild
-        user = ctx.author
+        # user = ctx.author
 
         if await self.config.guild(server).lvl_msg():
             await self.config.guild(server).lvl_msg.set(False)
@@ -1448,7 +1432,7 @@ class Leveler(commands.Cog):
     @commands.guild_only()
     async def available(self, ctx):
         """Get a list of available badges for server or global."""
-        user = ctx.author
+        # user = ctx.author
         server = ctx.guild
 
         # get server stuff
@@ -1457,7 +1441,7 @@ class Leveler(commands.Cog):
             (server.id, server.name, server.icon_url),
         ]
 
-        title_text = "**Available Badges**"
+        # title_text = "**Available Badges**"
         index = 0
         for serverid, servername, icon_url in ids:
             await asyncio.sleep(0)
@@ -2068,7 +2052,7 @@ class Leveler(commands.Cog):
     async def listrole(self, ctx):
         """List role/level associations."""
         server = ctx.guild
-        user = ctx.author
+        # user = ctx.author
 
         server_roles = await db.roles.find_one({"server_id": str(server.id)})
 
@@ -2366,20 +2350,20 @@ class Leveler(commands.Cog):
         font_file = f"{bundled_data_path(self)}/font.ttf"
         font_bold_file = f"{bundled_data_path(self)}/font_bold.ttf"
         font_unicode_file = f"{bundled_data_path(self)}/unicode.ttf"
-        name_fnt = ImageFont.truetype(font_bold_file, 22, encoding="utf-8")
+        # name_fnt = ImageFont.truetype(font_bold_file, 22, encoding="utf-8")
         header_u_fnt = ImageFont.truetype(font_unicode_file, 18, encoding="utf-8")
-        title_fnt = ImageFont.truetype(font_file, 18, encoding="utf-8")
+        # title_fnt = ImageFont.truetype(font_file, 18, encoding="utf-8")
         sub_header_fnt = ImageFont.truetype(font_bold_file, 14, encoding="utf-8")
-        badge_fnt = ImageFont.truetype(font_bold_file, 10, encoding="utf-8")
+        # badge_fnt = ImageFont.truetype(font_bold_file, 10, encoding="utf-8")
         exp_fnt = ImageFont.truetype(font_bold_file, 14, encoding="utf-8")
-        large_fnt = ImageFont.truetype(font_bold_file, 33, encoding="utf-8")
+        # large_fnt = ImageFont.truetype(font_bold_file, 33, encoding="utf-8")
         level_label_fnt = ImageFont.truetype(font_bold_file, 22, encoding="utf-8")
         general_info_fnt = ImageFont.truetype(font_bold_file, 15, encoding="utf-8")
         general_info_u_fnt = ImageFont.truetype(font_unicode_file, 12, encoding="utf-8")
         rep_fnt = ImageFont.truetype(font_bold_file, 26, encoding="utf-8")
         text_fnt = ImageFont.truetype(font_bold_file, 12, encoding="utf-8")
         text_u_fnt = ImageFont.truetype(font_unicode_file, 8, encoding="utf-8")
-        credit_fnt = ImageFont.truetype(font_bold_file, 10, encoding="utf-8")
+        # credit_fnt = ImageFont.truetype(font_bold_file, 10, encoding="utf-8")
 
         def _write_unicode(text, init_x, y, font, unicode_font, fill):
             write_pos = init_x
@@ -2396,11 +2380,11 @@ class Leveler(commands.Cog):
         userinfo = await db.users.find_one({"user_id": str(user.id)})
         await self._badge_convert_dict(userinfo)
         bg_url = userinfo["profile_background"]
-        profile_url = user.avatar_url
+        # profile_url = user.avatar_url
 
         # create image objects
-        bg_image = Image
-        profile_image = Image
+        # bg_image = Image
+        # profile_image = Image
 
         async with self.session.get(bg_url) as r:
             image = await r.content.read()
@@ -2438,7 +2422,7 @@ class Leveler(commands.Cog):
         left_pos = 70
         right_pos = 285
         title_height = 22
-        gap = 3
+        # gap = 3
 
         # determines rep section color
         if "rep_color" not in userinfo.keys() or not userinfo["rep_color"]:
@@ -2526,9 +2510,9 @@ class Leveler(commands.Cog):
         draw.rectangle([(10, 138), (95, 168)], fill=rep_fill)  # reps
 
         total_gap = 10
-        border = int(total_gap / 2)
+        # border = int(total_gap / 2)
         profile_size = lvl_circle_dia - total_gap
-        raw_length = profile_size * multiplier
+        # raw_length = profile_size * multiplier
         # put in profile picture
         total_gap = 6
         border = int(total_gap / 2)
@@ -2594,7 +2578,7 @@ class Leveler(commands.Cog):
         dark_text = (35, 35, 35, 230)
         info_text_color = self._contrast(info_color, light_color, dark_text)
 
-        lvl_left = 100
+        # lvl_left = 100
         label_align = 105
         _write_unicode(
             "Rank:", label_align, 165, general_info_fnt, general_info_u_fnt, info_text_color
@@ -2606,14 +2590,14 @@ class Leveler(commands.Cog):
 
         # local stats
         num_local_align = 172
-        local_symbol = "\U0001F3E0 "
+        # local_symbol = "\U0001F3E0 "
         if "linux" in platform.system().lower():
             local_symbol = "\U0001F3E0 "
         else:
             local_symbol = "S "
 
         s_rank_txt = local_symbol + self._truncate_text(
-            "#{}".format(await self._find_server_rank(user, server)), 8
+            f"#{await self._find_server_rank(user, server)}", 8
         )
         _write_unicode(
             s_rank_txt,
@@ -2624,7 +2608,7 @@ class Leveler(commands.Cog):
             info_text_color,
         )  # Rank
 
-        s_exp_txt = self._truncate_text("{}".format(await self._find_server_exp(user, server)), 8)
+        s_exp_txt = self._truncate_text(f"{await self._find_server_exp(user, server)}", 8)
         _write_unicode(
             s_exp_txt, num_local_align, 180, general_info_fnt, general_info_u_fnt, info_text_color
         )  # Exp
@@ -2646,10 +2630,8 @@ class Leveler(commands.Cog):
             global_symbol = "G "
             fine_adjust = 0
 
-        rank_txt = global_symbol + self._truncate_text(
-            "#{}".format(await self._find_global_rank(user)), 8
-        )
-        exp_txt = self._truncate_text("{}".format(userinfo["total_exp"]), 8)
+        rank_txt = global_symbol + self._truncate_text(f"#{await self._find_global_rank(user)}", 8)
+        exp_txt = self._truncate_text(f"{userinfo['total_exp']}", 8)
         _write_unicode(
             rank_txt,
             num_align - general_info_u_fnt.getsize(global_symbol)[0] + fine_adjust,
@@ -2688,7 +2670,7 @@ class Leveler(commands.Cog):
             vert_pos = 171
             right_shift = 0
             left = 9 + right_shift
-            right = 52 + right_shift
+            # right = 52 + right_shift
             size = 27
             total_gap = 4  # /2
             hor_gap = 3
@@ -2904,18 +2886,18 @@ class Leveler(commands.Cog):
 
     async def draw_rank(self, user, server):
         # fonts
-        font_file = f"{bundled_data_path(self)}/font.ttf"
+        # font_file = f"{bundled_data_path(self)}/font.ttf"
         font_bold_file = f"{bundled_data_path(self)}/font_bold.ttf"
         font_unicode_file = f"{bundled_data_path(self)}/unicode.ttf"
         name_fnt = ImageFont.truetype(font_bold_file, 22)
         header_u_fnt = ImageFont.truetype(font_unicode_file, 18)
-        sub_header_fnt = ImageFont.truetype(font_bold_file, 14)
-        badge_fnt = ImageFont.truetype(font_bold_file, 12)
-        large_fnt = ImageFont.truetype(font_bold_file, 33)
+        # sub_header_fnt = ImageFont.truetype(font_bold_file, 14)
+        # badge_fnt = ImageFont.truetype(font_bold_file, 12)
+        # large_fnt = ImageFont.truetype(font_bold_file, 33)
         level_label_fnt = ImageFont.truetype(font_bold_file, 22)
         general_info_fnt = ImageFont.truetype(font_bold_file, 15)
-        general_info_u_fnt = ImageFont.truetype(font_unicode_file, 11)
-        credit_fnt = ImageFont.truetype(font_bold_file, 10)
+        # general_info_u_fnt = ImageFont.truetype(font_unicode_file, 11)
+        # credit_fnt = ImageFont.truetype(font_bold_file, 10)
 
         def _write_unicode(text, init_x, y, font, unicode_font, fill):
             write_pos = init_x
@@ -3093,7 +3075,7 @@ class Leveler(commands.Cog):
 
         # draw text
         grey_color = (110, 110, 110, 255)
-        white_color = (230, 230, 230, 255)
+        # white_color = (230, 230, 230, 255)
 
         # put in server picture
         server_size = content_bottom - content_top - 10
@@ -3155,14 +3137,14 @@ class Leveler(commands.Cog):
         )  # Credit
         # info
         right_text_align = 290
-        rank_txt = "#{}".format(await self._find_server_rank(user, server))
+        rank_txt = f"#{await self._find_server_rank(user, server)}"
         draw.text(
             (right_text_align, 38),
             self._truncate_text(rank_txt, 12),
             font=general_info_fnt,
             fill=label_text_color,
         )  # Rank
-        exp_txt = "{}".format(await self._find_server_exp(user, server))
+        exp_txt = f"{await self._find_server_exp(user, server)}"
         draw.text(
             (right_text_align, 58),
             self._truncate_text(exp_txt, 12),
@@ -3170,7 +3152,7 @@ class Leveler(commands.Cog):
             fill=label_text_color,
         )  # Exp
         credits = await bank.get_balance(user)
-        credit_txt = "${}".format(credits)
+        credit_txt = f"${credits}"
         draw.text(
             (right_text_align, 78),
             self._truncate_text(credit_txt, 12),
@@ -3203,11 +3185,11 @@ class Leveler(commands.Cog):
         userinfo = await db.users.find_one({"user_id": str(user.id)})
         # get urls
         bg_url = userinfo["levelup_background"]
-        profile_url = user.avatar_url
+        # profile_url = user.avatar_url
 
         # create image objects
-        bg_image = Image
-        profile_image = Image
+        # bg_image = Image
+        # profile_image = Image
 
         async with self.session.get(bg_url) as r:
             image = await r.content.read()
@@ -3260,7 +3242,7 @@ class Leveler(commands.Cog):
         draw_thumb.ellipse((0, 0) + (raw_length, raw_length), fill=255, outline=0)
 
         # drawing level bar calculate angle
-        start_angle = -90  # from top instead of 3oclock
+        # start_angle = -90  # from top instead of 3oclock
 
         lvl_circle = Image.new("RGBA", (raw_length, raw_length))
         draw_lvl_circle = ImageDraw.Draw(lvl_circle)
@@ -3280,13 +3262,13 @@ class Leveler(commands.Cog):
         raw_length = profile_size * multiplier
         # put in profile picture
         output = ImageOps.fit(profile_image, (raw_length, raw_length), centering=(0.5, 0.5))
-        output = output.resize((profile_size, profile_size), Image.ANTIALIAS)
+        # output = output.resize((profile_size, profile_size), Image.ANTIALIAS)
         mask = mask.resize((profile_size, profile_size), Image.ANTIALIAS)
         profile_image = profile_image.resize((profile_size, profile_size), Image.ANTIALIAS)
         process.paste(profile_image, (circle_left + border, circle_top + border), mask)
 
         # fonts
-        level_fnt2 = ImageFont.truetype(font_bold_file, 19)
+        # level_fnt2 = ImageFont.truetype(font_bold_file, 19)
         level_fnt = ImageFont.truetype(font_bold_file, 26)
 
         # write label text
@@ -3531,7 +3513,7 @@ class Leveler(commands.Cog):
         users = []
         async for userinfo in db.users.find({}):
             await asyncio.sleep(0)
-            userid = userinfo["user_id"]
+            # userid = userinfo["user_id"]
             if "servers" in userinfo and server.id in userinfo["servers"]:
                 users.append((userinfo["user_id"], userinfo["rep"]))
 
@@ -3795,7 +3777,7 @@ class Leveler(commands.Cog):
             if role_obj is None:
                 await ctx.send("**Please make sure the `{}` roles exist!**".format(role_name))
             else:
-                server_roles = db.roles.find_one({"server_id": str(server.id)})
+                server_roles = await db.roles.find_one({"server_id": str(server.id)})
                 if not server_roles:
                     new_server = {
                         "server_id": str(server.id),
