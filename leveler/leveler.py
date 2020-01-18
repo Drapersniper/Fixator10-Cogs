@@ -1133,7 +1133,7 @@ class Leveler(commands.Cog):
             if await self.config.guild(guild).private_lvl_message():
                 private_levels.append(guild.name)
 
-        num_users = len(list(await db.users.find({})))
+        num_users = len(await db.users.find({}).to_list(None))
 
         default_profile = await self.config.default_profile()
         default_rank = await self.config.default_rank()
