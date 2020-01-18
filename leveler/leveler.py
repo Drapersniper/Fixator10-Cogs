@@ -1,5 +1,8 @@
 import asyncio
 import contextlib
+from datetime import timedelta
+from typing import Union
+
 import math
 import operator
 import os
@@ -273,7 +276,7 @@ class Leveler(commands.Cog):
     @commands.command()
     @commands.guild_only()
     async def top(self, ctx, *options):
-        """Displays the leaderboard. 
+        """Displays the leaderboard.
         Add -global parameter for global and -rep for reputation."""
         server = ctx.guild
         user = ctx.author
@@ -1319,6 +1322,29 @@ class Leveler(commands.Cog):
     @checks.is_owner()
     @lvladmin.command()
     @commands.guild_only()
+    async def xpban(self, ctx, days: int, *, user: Union[discord.Member, int, None]):
+        """Ban user from getting experience"""
+        if isinstance(user, int):
+            try:
+                user = await self.bot.fetch_user(user)
+            except (discord.HTTPException, discord.NotFound):
+                user = None
+        if user is None:
+            await ctx.send_help()
+            return
+        chat_block = time.time() + timedelta(days=days).total_seconds()
+        try:
+            await db.users.update_one(
+                {"user_id": str(user.id)}, {"$set": {"chat_block": chat_block}}
+            )
+        except Exception as exc:
+            await ctx.send("Unable to add chat block: {}".format(exc))
+        else:
+            await ctx.tick()
+
+    @checks.is_owner()
+    @lvladmin.command()
+    @commands.guild_only()
     async def mention(self, ctx):
         """Toggle mentions on messages."""
         if await self.config.guild(ctx.guild).mentions():
@@ -1558,7 +1584,7 @@ class Leveler(commands.Cog):
                     if badge_info["price"] == -1:
                         await ctx.send("**That badge is not purchasable.**".format(name))
                     elif badge_info["price"] == 0:
-                        userinfo["badges"]["{}_{}".format(name, str(serverid))] = server_badges[
+                        userinfo["badges"][f"{name}_{serverid}"] = server_badges[
                             name
                         ]
                         await db.users.update_one(
@@ -1659,7 +1685,7 @@ class Leveler(commands.Cog):
     async def addbadge(
         self, ctx, name: str, bg_img: str, border_color: str, price: int, *, description: str
     ):
-        """Add a badge. 
+        """Add a badge.
         name = "Use Quotes", Colors = #hex. bg_img = url, price = -1(non-purchasable), 0(free), or credit amount"""
 
         user = ctx.author
@@ -1807,6 +1833,22 @@ class Leveler(commands.Cog):
                 {"server_id": serverbadges["server_id"]},
                 {"$set": {"badges": serverbadges["badges"]}},
             )
+            # remove the badge if there
+            async for user_info_temp in db.users.find({}):
+                try:
+                    user_info_temp = self._badge_convert_dict(user_info_temp)
+
+                    badge_name = "{}_{}".format(name, serverid)
+                    if badge_name in user_info_temp["badges"].keys():
+                        del user_info_temp["badges"][badge_name]
+                        await db.users.update_one(
+                            {"user_id": user_info_temp["user_id"]},
+                            {"$set": {"badges": user_info_temp["badges"]}},
+                        )
+                except Exception as exc:
+                    log.error(
+                        f"Unable to delete badge {name} from {user_info_temp['user_id']}: {exc}"
+                    )
 
             await ctx.send("**The `{}` badge has been removed.**".format(name))
         else:
