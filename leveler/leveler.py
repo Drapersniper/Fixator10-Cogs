@@ -1677,7 +1677,7 @@ class Leveler(commands.Cog):
     async def _badge_convert_dict(userinfo):
         if "badges" not in userinfo or not isinstance(userinfo["badges"], dict):
             await db.users.update_one({"user_id": userinfo["user_id"]}, {"$set": {"badges": {}}})
-        return db.users.find_one({"user_id": userinfo["user_id"]})
+        return await db.users.find_one({"user_id": userinfo["user_id"]})
 
     @checks.mod_or_permissions(manage_roles=True)
     @badge.command(name="add")
@@ -1836,7 +1836,7 @@ class Leveler(commands.Cog):
             # remove the badge if there
             async for user_info_temp in db.users.find({}):
                 try:
-                    user_info_temp = self._badge_convert_dict(user_info_temp)
+                    user_info_temp = await self._badge_convert_dict(user_info_temp)
 
                     badge_name = "{}_{}".format(name, serverid)
                     if badge_name in user_info_temp["badges"].keys():
