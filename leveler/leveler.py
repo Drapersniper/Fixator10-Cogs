@@ -1,9 +1,6 @@
 import asyncio
 import contextlib
-from datetime import timedelta
-from typing import Union
-
-import math
+import logging
 import operator
 import os
 import platform
@@ -14,24 +11,28 @@ import textwrap
 import time
 from asyncio import TimeoutError
 from copy import copy
+from datetime import timedelta
 from io import BytesIO
+from typing import Union
 
 import aiohttp
 import discord
+import math
 import numpy
 import scipy
 import scipy.cluster
-from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
 from discord.utils import find
 from motor.motor_asyncio import AsyncIOMotorClient
-from redbot.core import bank, checks, commands, Config
+from redbot.core import Config, bank, checks, commands
 from redbot.core.data_manager import bundled_data_path, cog_data_path
-from redbot.core.utils.chat_formatting import pagify, box
-from redbot.core.utils.menus import menu, DEFAULT_CONTROLS
+from redbot.core.utils.chat_formatting import box, pagify
+from redbot.core.utils.menus import DEFAULT_CONTROLS, menu
 from redbot.core.utils.predicates import MessagePredicate
 
 client = AsyncIOMotorClient()
 db = client["leveler"]
+log = logging.getLogger("red.cogs.Leveler")
 
 
 async def non_global_bank(ctx):
@@ -242,7 +243,7 @@ class Leveler(commands.Cog):
                     f"{cog_data_path(self)}/{user.id}_rank.png", filename="rank.png"
                 )
                 await ctx.send(
-                    f"**Ranking & Statistics for {await self._is_mention(user)}**", file=file,
+                    f"**Ranking & Statistics for {await self._is_mention(user)}**", file=file
                 )
             await db.users.update_one(
                 {"user_id": str(user.id)},
@@ -1584,9 +1585,7 @@ class Leveler(commands.Cog):
                     if badge_info["price"] == -1:
                         await ctx.send("**That badge is not purchasable.**".format(name))
                     elif badge_info["price"] == 0:
-                        userinfo["badges"][f"{name}_{serverid}"] = server_badges[
-                            name
-                        ]
+                        userinfo["badges"][f"{name}_{serverid}"] = server_badges[name]
                         await db.users.update_one(
                             {"user_id": userinfo["user_id"]},
                             {"$set": {"badges": userinfo["badges"]}},
