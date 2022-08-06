@@ -2,7 +2,6 @@ import asyncio
 import contextlib
 import logging
 import operator
-import os
 import platform
 import random
 import re
@@ -240,10 +239,7 @@ class Leveler(commands.Cog):
 
     async def profile_text(self, user, server, userinfo):
         def test_empty(text):
-            if not text:
-                return "None"
-            else:
-                return text
+            return text or "None"
 
         em = discord.Embed(colour=user.colour)
         em.add_field(name="Title:", value=test_empty(userinfo["title"]))
@@ -1022,7 +1018,7 @@ class Leveler(commands.Cog):
             await ctx.send("**Not a valid color. Use** `default`, `white`, **a valid hex code formatted like** `#990000`, **or** `auto` **for automatic**.")
             return
 
-        await self.db.users.update_one({"user_id": str(user.id)}, {"$set": {section_name: set_color[0]}})
+        await self.db.users.update_one({"user_id": str(user.id)}, {"$set": {section: set_color[0]}})  # Fix incorrect variable user - before it would raise an undefined error
         await ctx.send("**Color for level-up {} set.**".format(section))
 
     # uses k-means algorithm to find color from bg, rank is abundance of color, descending
@@ -3404,7 +3400,8 @@ class Leveler(commands.Cog):
         try:
             required = self._required_exp(userinfo["servers"][str(server.id)]["level"])
         except Exception as e:
-            log.warning(f"Error while determining XP for {user} in {server}\n", exc_info=e)
+            log.warning(f"Error while determining XP for {user} in {server} - Server XP will not be given\n", exc_info=e)
+            required = None  # Set to None so we can early return after saving the user XP
         try:
             await self.db.users.update_one(
                 {"user_id": str(user.id)}, {"$set": {"total_exp": userinfo["total_exp"] + exp}}
@@ -3412,7 +3409,10 @@ class Leveler(commands.Cog):
             await asyncio.sleep(0)
         except Exception as e:
             log.warning(f"Could not add XP to {user}!\n", exc_info=e)
-        if userinfo["servers"][str(server.id)]["current_exp"] + exp >= required:
+
+        # If Require is None Give the XP but dont calculate level - this can potentially cause users to have more then the required XP to level up without leveling
+        #  It should auto recover on the next op to give XP and assign the correct level and XP
+        if required and userinfo["servers"][str(server.id)]["current_exp"] + exp >= required:
             await asyncio.sleep(0)
             userinfo["servers"][str(server.id)]["level"] += 1
             await self.db.users.update_one(
