@@ -22,12 +22,12 @@ import numpy
 import scipy
 import scipy.cluster
 from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
-from discord.utils import find
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo import errors as mongoerrors
 from redbot.core.bot import Red
 from redbot.core import Config, bank, checks, commands
 from redbot.core.data_manager import bundled_data_path, cog_data_path
+from redbot.core.utils import AsyncIter
 from redbot.core.utils.chat_formatting import box, pagify
 from redbot.core.utils.menus import DEFAULT_CONTROLS, menu
 from redbot.core.utils.predicates import MessagePredicate
@@ -346,7 +346,6 @@ class Leveler(commands.Cog):
             if "-rep" in options and "-global" in options:
                 title = "Global Rep Leaderboard for {}\n".format(self.bot.user.name)
                 async for userinfo in self.db.users.find(({"rep": {"$gte": 1}})).sort("rep", -1).limit(300):
-                    await asyncio.sleep(0)
                     try:
                         users.append((userinfo["username"], userinfo["rep"]))
                     except KeyError:
@@ -367,7 +366,6 @@ class Leveler(commands.Cog):
                 async for userinfo in self.db.users.find(({"total_exp": {"$gte": 100}})).sort("total_exp", -1).limit(
                     300
                 ):
-                    await asyncio.sleep(0)
                     try:
                         users.append((userinfo["username"], userinfo["total_exp"]))
                     except KeyError:
@@ -388,7 +386,6 @@ class Leveler(commands.Cog):
                 async for userinfo in self.db.users.find(
                     {"$and": [{q: {"$exists": "true"}}, {"rep": {"$gte": 1}}]}
                 ).sort("rep", -1):
-                    await asyncio.sleep(0)
                     if userinfo["user_id"] in guild_ids:
                         try:
                             users.append((userinfo["username"], userinfo["rep"]))
@@ -406,12 +403,10 @@ class Leveler(commands.Cog):
             else:
                 title = "Exp Leaderboard for {}\n".format(server.name)
                 async for userinfo in self.db.users.find({q: {"$exists": "true"}}):
-                    await asyncio.sleep(0)
                     if userinfo["user_id"] in guild_ids:
                         server_exp = 0
                         # generate total xp gain for each level gained
-                        for i in range(userinfo["servers"][str(server.id)]["level"]):
-                            await asyncio.sleep(0)
+                        async for i in AsyncIter(range(userinfo["servers"][str(server.id)]["level"]), delay=0, steps=100):
                             server_exp += self._required_exp(i)
                         # add current non-completed level exp to count
                         server_exp += userinfo["servers"][str(server.id)]["current_exp"]
@@ -448,8 +443,7 @@ class Leveler(commands.Cog):
             end_index = per_page * page
             top_user_value = 8 + len(str(sorted_list[start_index:end_index][0][1])) + 4
 
-            async for single_user in self.asyncit(sorted_list[start_index:end_index]):
-                await asyncio.sleep(0)
+            async for single_user in AsyncIter(sorted_list[start_index:end_index], delay=0, steps=100):
                 label = "   "
                 rank_text = f"{rank:<2}"
                 label_text = f"{label:<2}"
@@ -586,8 +580,7 @@ class Leveler(commands.Cog):
         msg += f"Reps: {userinfo['rep']}\n"
         msg += f"Server Level: {userinfo['servers'][str(server.id)]['level']}\n"
         total_server_exp = 0
-        for i in range(userinfo["servers"][str(server.id)]["level"]):
-            await asyncio.sleep(0)
+        async for i in AsyncIter(range(userinfo["servers"][str(server.id)]["level"]), delay=0, steps=100):
             total_server_exp += self._required_exp(i)
         total_server_exp += userinfo["servers"][str(server.id)]["current_exp"]
         msg += f"Server Exp: {total_server_exp}\n"
@@ -783,8 +776,7 @@ class Leveler(commands.Cog):
 
             hex_colors = await self._auto_color(ctx, userinfo["profile_background"], color_ranks)
             set_color = []
-            for hex_color in hex_colors:
-                await asyncio.sleep(0)
+            async for hex_color in AsyncIter(hex_colors, delay=0, steps=100):
                 color_temp = self._hex_to_rgb(hex_color, default_a)
                 set_color.append(color_temp)
 
@@ -914,8 +906,7 @@ class Leveler(commands.Cog):
 
             hex_colors = await self._auto_color(ctx, userinfo["rank_background"], color_ranks)
             set_color = []
-            for hex_color in hex_colors:
-                await asyncio.sleep(0)
+            async for hex_color in AsyncIter(hex_colors, delay=0, steps=100):
                 color_temp = self._hex_to_rgb(hex_color, default_a)
                 set_color.append(color_temp)
         elif color == "white":
@@ -1001,8 +992,7 @@ class Leveler(commands.Cog):
                 return
             hex_colors = await self._auto_color(ctx, userinfo["levelup_background"], color_ranks)
             set_color = []
-            for hex_color in hex_colors:
-                await asyncio.sleep(0)
+            async for hex_color in AsyncIter(hex_colors, delay=0, steps=100):
                 color_temp = self._hex_to_rgb(hex_color, default_a)
                 set_color.append(color_temp)
         elif color == "white":
@@ -1045,15 +1035,13 @@ class Leveler(commands.Cog):
         # sort counts
         freq_index = []
         index = 0
-        for count in counts:
-            await asyncio.sleep(0)
+        async for count in AsyncIter(counts, delay=0, steps=100):
             freq_index.append((index, count))
             index += 1
         sorted_list = sorted(freq_index, key=operator.itemgetter(1), reverse=True)
 
         colors = []
-        for rank in ranks:
-            await asyncio.sleep(0)
+        async for rank in AsyncIter(ranks, delay=0, steps=100):
             color_index = min(rank, len(codes))
             peak = codes[sorted_list[color_index][0]]  # gets the original index
             peak = peak.astype(int)
@@ -1414,8 +1402,7 @@ class Leveler(commands.Cog):
 
         # get rid of old level exp
         old_server_exp = 0
-        for i in range(userinfo["servers"][str(server.id)]["level"]):
-            await asyncio.sleep(0)
+        async for i in AsyncIter(range(userinfo["servers"][str(server.id)]["level"]), delay=0, steps=100):
             old_server_exp += self._required_exp(i)
         userinfo["total_exp"] -= old_server_exp
         userinfo["total_exp"] -= userinfo["servers"][str(server.id)]["current_exp"]
@@ -1603,16 +1590,13 @@ class Leveler(commands.Cog):
 
         global_list = []
         server_list = []
-
-        for serverid, servername, icon_url in ids:
-            await asyncio.sleep(0)
+        async for serverid, servername, icon_url in AsyncIter(ids, delay=0, steps=100):
             msg = ""
             server_badge_info = await self.db.badges.find_one({"server_id": str(serverid)})
             if server_badge_info:
                 server_badges = server_badge_info["badges"]
                 if len(server_badges) >= 1:
-                    for badgename in server_badges:
-                        await asyncio.sleep(0)
+                    async for badgename in AsyncIter(server_badges, delay=0, steps=100):
                         badgeinfo = server_badges[badgename]
                         if badgeinfo["price"] == -1:
                             price = "Non-purchasable"
@@ -1629,7 +1613,7 @@ class Leveler(commands.Cog):
 
             total_pages = len(list(pagify(msg, ["\n"], page_length=1500)))
             page_num = 1
-            for page in pagify(msg, ["\n"], page_length=1500):
+            async for page in AsyncIter(pagify(msg, ["\n"], page_length=1500), delay=0, steps=2):
                 em = discord.Embed(colour=await ctx.embed_color(), description=page)
                 em.set_author(name="{}".format(servername), icon_url=icon_url)
                 em.set_footer(text="Page {} of {}".format(page_num, total_pages))
@@ -1783,9 +1767,7 @@ class Leveler(commands.Cog):
         if priority_num < -1 or priority_num > 5000:
             await ctx.send("**Invalid priority number! -1 to 5000.**")
             return
-
-        for badge in userinfo["badges"]:
-            await asyncio.sleep(0)
+        async for badge in AsyncIter(userinfo["badges"], delay=0, steps=100):
             if userinfo["badges"][badge]["badge_name"] == name:
                 userinfo["badges"][badge]["priority_num"] = priority_num
                 await self.db.users.update_one(
@@ -1896,8 +1878,7 @@ class Leveler(commands.Cog):
             # go though all users and update the badge.
             # Doing it this way because dynamic does more accesses when doing profile
             async for user in self.db.users.find({}):
-                await asyncio.sleep(0)
-                try:
+                with contextlib.suppress(Exception):
                     user = await self._badge_convert_dict(user)
                     userbadges = user["badges"]
                     badge_name = "{}_{}".format(name, serverid)
@@ -1906,8 +1887,6 @@ class Leveler(commands.Cog):
                         new_badge["priority_num"] = user_priority_num  # maintain old priority number set by user
                         userbadges[badge_name] = new_badge
                         await self.db.users.update_one({"user_id": user["user_id"]}, {"$set": {"badges": userbadges}})
-                except:
-                    pass
             await ctx.send("**The `{}` badge has been updated.**".format(name))
 
     @checks.is_owner()
@@ -2117,8 +2096,7 @@ class Leveler(commands.Cog):
         else:
             badges = server_badges["badges"]
             msg = "**Badge** → Level\n"
-            for badge in badges.keys():
-                await asyncio.sleep(0)
+            async for badge in AsyncIter(badges.keys(), delay=0, steps=100):
                 msg += "**• {} →** {}\n".format(badge, badges[badge])
 
         em.description = msg
@@ -2204,8 +2182,7 @@ class Leveler(commands.Cog):
         else:
             roles = server_roles["roles"]
             msg = "**Role** → Level\n"
-            for role in roles:
-                await asyncio.sleep(0)
+            async for role in AsyncIter(roles, delay=0, steps=100):
                 if roles[role]["remove_role"] is not None:
                     msg += "**• {} →** {} (Removes: {})\n".format(
                         role, roles[role]["level"], roles[role]["remove_role"]
@@ -2458,8 +2435,7 @@ class Leveler(commands.Cog):
             embeds = []
             total = len(backgrounds[bg_key])
             cnt = 1
-            for bg in sorted(backgrounds[bg_key].keys()):
-                await asyncio.sleep(0)
+            async for bg in AsyncIter(sorted(backgrounds[bg_key].keys()), delay=0, steps=100):
                 em = discord.Embed(
                     title=bg,
                     color=await ctx.embed_color(),
@@ -2748,17 +2724,14 @@ class Leveler(commands.Cog):
         draw.text((105, 220), "Info Box", font=sub_header_fnt, fill=white_color)  # Info Box
         margin = 105
         offset = 238
-        for line in textwrap.wrap(userinfo["info"], width=42):
-            await asyncio.sleep(0)
+        async for line in AsyncIter(sorted(textwrap.wrap(userinfo["info"], width=42)), delay=0, steps=100):
             # draw.text((margin, offset), line, font=text_fnt, fill=(70,70,70,255))
             _write_unicode(line, margin, offset, text_fnt, text_u_fnt, info_text_color)
             offset += text_fnt.getsize(line)[1] + 2
 
         # sort badges
         priority_badges = []
-
-        for badgename in userinfo["badges"].keys():
-            await asyncio.sleep(0)
+        async for badgename in AsyncIter(userinfo["badges"].keys(), delay=0, steps=100):
             badge = userinfo["badges"][badgename]
             priority_num = badge["priority_num"]
             if priority_num != 0 and priority_num != -1:
@@ -3311,7 +3284,7 @@ class Leveler(commands.Cog):
         return discord.File(image_object, f"levelup_{user.id}_{server.id}_{int(datetime.now().timestamp())}.png")
 
     @commands.Cog.listener("on_message_without_command")
-    async def _handle_on_message(self, message):
+    async def _handle_on_message(self, message: discord.Message):
         server = message.guild
         user = message.author
         if not server or user.bot:
@@ -3333,20 +3306,19 @@ class Leveler(commands.Cog):
                     continue
                 tasks = copy(self._message_tasks)
                 self._message_tasks = []
-                for a in tasks:
+                async for a in AsyncIter(tasks, delay=0, steps=100):
                     try:
                         await self._process_user_on_message(*a)
-                        await asyncio.sleep(0.1)
                     except asyncio.CancelledError:
                         raise asyncio.CancelledError
                     except Exception as err:
                         log.error(
                             f"Error while giving XP to {a[0]}({a[0].id}) in {a[1]}({a[1].id})", exc_info=err,
                         )
-                log.debug("Process task sleeping for 30 seconds")
-                await asyncio.sleep(30)
+                log.debug("Process task sleeping for 1 second")
+                await asyncio.sleep(1)
 
-    async def _process_user_on_message(self, user, server, message):  # Process a users message
+    async def _process_user_on_message(self, user: discord.Member, server: discord.Guild, message: discord.Message):  # Process a users message
         if not self._db_ready:
             log.debug("process_user_on_message has exited early because db is not ready")
             return
@@ -3365,7 +3337,6 @@ class Leveler(commands.Cog):
             userinfo["chat_block"] = 0
         if "last_message" not in userinfo:
             userinfo["last_message"] = 0
-        await asyncio.sleep(0)
         if all(
             [
                 float(curr_time) - float(userinfo["chat_block"]) >= 120,
@@ -3376,10 +3347,8 @@ class Leveler(commands.Cog):
             ]
         ):
             log.debug(f"{user} {server}'s message qualifies for xp awarding")
-            await asyncio.sleep(0)
             xp = await self.config.xp()
             await self._process_exp(message, server, userinfo, random.randint(xp[0], xp[1]))
-            await asyncio.sleep(0)
             await self._give_chat_credit(user, server)
         else:
             log.debug(f"{user} {server}'s message DOES NOT qualify for xp awarding")
@@ -3406,14 +3375,12 @@ class Leveler(commands.Cog):
             await self.db.users.update_one(
                 {"user_id": str(user.id)}, {"$set": {"total_exp": userinfo["total_exp"] + exp}}
             )
-            await asyncio.sleep(0)
         except Exception as e:
             log.warning(f"Could not add XP to {user}!\n", exc_info=e)
 
         # If Require is None Give the XP but dont calculate level - this can potentially cause users to have more then the required XP to level up without leveling
         #  It should auto recover on the next op to give XP and assign the correct level and XP
         if required and userinfo["servers"][str(server.id)]["current_exp"] + exp >= required:
-            await asyncio.sleep(0)
             userinfo["servers"][str(server.id)]["level"] += 1
             await self.db.users.update_one(
                 {"user_id": str(user.id)},
@@ -3428,7 +3395,6 @@ class Leveler(commands.Cog):
                     }
                 },
             )
-            await asyncio.sleep(0)
             await self._handle_levelup(user, userinfo, server, channel)
         else:
             await self.db.users.update_one(
@@ -3469,15 +3435,11 @@ class Leveler(commands.Cog):
         # add to appropriate role if necessary
         # try:
         server_roles = await self.db.roles.find_one({"server_id": str(server.id)})
-        await asyncio.sleep(0)
         if server_roles is not None:
-            for role in server_roles["roles"].keys():
-                await asyncio.sleep(0)
+            async for role in AsyncIter(server_roles["roles"].keys(), delay=0, steps=100):
                 if int(server_roles["roles"][role]["level"]) == int(new_level):
-                    await asyncio.sleep(0)
                     add_role = discord.utils.get(server.roles, name=role)
                     if add_role is not None:
-                        await asyncio.sleep(0)
                         try:
                             await user.add_roles(add_role, reason="Levelup")
                         except discord.Forbidden:
@@ -3486,7 +3448,6 @@ class Leveler(commands.Cog):
                             await channel.send("Levelup role adding failed")
                     remove_role = discord.utils.get(server.roles, name=server_roles["roles"][role]["remove_role"])
                     if remove_role is not None:
-                        await asyncio.sleep(0)
                         try:
                             await user.remove_roles(remove_role, reason="Levelup")
                         except discord.Forbidden:
@@ -3495,15 +3456,11 @@ class Leveler(commands.Cog):
                             await channel.send("Levelup role removal failed")
         try:
             server_linked_badges = await self.db.badgelinks.find_one({"server_id": str(server.id)})
-            await asyncio.sleep(0)
             if server_linked_badges is not None:
-                for badge_name in server_linked_badges["badges"]:
-                    await asyncio.sleep(0)
+                async for badge_name in AsyncIter(server_linked_badges["badges"], delay=0, steps=100):
                     if int(server_linked_badges["badges"][badge_name]) == int(new_level):
                         server_badges = await self.db.badges.find_one({"server_id": str(server.id)})
-                        await asyncio.sleep(0)
                         if server_badges is not None and badge_name in server_badges["badges"].keys():
-                            await asyncio.sleep(0)
                             userinfo_db = await self.db.users.find_one({"user_id": str(user.id)})
                             new_badge_name = "{}_{}".format(badge_name, server.id)
                             userinfo_db["badges"][new_badge_name] = server_badges["badges"][badge_name]
@@ -3544,23 +3501,19 @@ class Leveler(commands.Cog):
         q = f"servers.{server.id}"
         guild_ids = [str(x.id) for x in server.members]
         async for userinfo in self.db.users.find({q: {"$exists": "true"}}):
-            await asyncio.sleep(0)
             if userinfo["user_id"] in guild_ids:
-                try:
+                with contextlib.suppress(Exception):
                     server_exp = 0
                     userid = userinfo["user_id"]
                     for i in range(userinfo["servers"][str(server.id)]["level"]):
                         server_exp += self._required_exp(i)
                     server_exp += userinfo["servers"][str(server.id)]["current_exp"]
                     users.append((userid, server_exp))
-                except:
-                    pass
 
         sorted_list = sorted(users, key=operator.itemgetter(1), reverse=True)
 
         rank = 1
-        for a_user in sorted_list:
-            await asyncio.sleep(0)
+        async for a_user in AsyncIter(sorted_list, delay=0, steps=100):
             if a_user[0] == targetid:
                 return rank
             rank += 1
@@ -3574,15 +3527,13 @@ class Leveler(commands.Cog):
         async for userinfo in self.db.users.find({"$and": [{q: {"$exists": "true"}}, {"rep": {"$gte": 1}}]}).sort(
             "rep", -1
         ):
-            await asyncio.sleep(0)
             if userinfo["user_id"] in guild_ids:
                 users.append((userinfo["user_id"], userinfo["rep"]))
 
         sorted_list = sorted(users, key=operator.itemgetter(1), reverse=True)
 
         rank = 1
-        for a_user in sorted_list:
-            await asyncio.sleep(0)
+        async for a_user in AsyncIter(sorted_list, delay=0, steps=100):
             if a_user[0] == str(user.id):
                 return rank
             rank += 1
@@ -3594,8 +3545,7 @@ class Leveler(commands.Cog):
         userinfo = await self.db.users.find_one({"user_id": str(user.id)})
 
         try:
-            for i in range(userinfo["servers"][str(server.id)]["level"]):
-                await asyncio.sleep(0)
+            async for i in AsyncIter(range(userinfo["servers"][str(server.id)]["level"]), delay=0, steps=100):
                 server_exp += self._required_exp(i)
             server_exp += userinfo["servers"][str(server.id)]["current_exp"]
             return server_exp
@@ -3608,7 +3558,6 @@ class Leveler(commands.Cog):
         users = []
 
         async for userinfo in self.db.users.find(({"total_exp": {"$gte": 10}})).sort("total_exp", -1).limit(1000):
-            await asyncio.sleep(0)
             try:
                 users.append((userinfo["user_id"], userinfo["total_exp"]))
             except KeyError:
@@ -3616,8 +3565,7 @@ class Leveler(commands.Cog):
         sorted_list = sorted(users, key=operator.itemgetter(1), reverse=True)
 
         rank = 1
-        for stats in sorted_list:
-            await asyncio.sleep(0)
+        async for stats in AsyncIter(sorted_list, delay=0, steps=100):
             if stats[0] == str(user.id):
                 return rank
             rank += 1
@@ -3628,7 +3576,6 @@ class Leveler(commands.Cog):
         users = []
 
         async for userinfo in self.db.users.find(({"rep": {"$gte": 1}})).sort("rep", -1).limit(1000):
-            await asyncio.sleep(0)
             try:
                 userid = userinfo["user_id"]
                 users.append((userid, userinfo["rep"]))
@@ -3637,8 +3584,7 @@ class Leveler(commands.Cog):
         sorted_list = sorted(users, key=operator.itemgetter(1), reverse=True)
 
         rank = 1
-        for stats in sorted_list:
-            await asyncio.sleep(0)
+        async for stats in AsyncIter(sorted_list, delay=0, steps=100):
             if stats[0] == str(user.id):
                 return rank
             rank += 1
@@ -3693,11 +3639,6 @@ class Leveler(commands.Cog):
             log.debug("error in user creation", exc_info=err)
         except Exception as err:
             log.debug("error in user creation", exc_info=err)
-
-    async def asyncit(self, iterable):
-        for i in iterable:
-            yield i
-            await asyncio.sleep(0)
 
     @staticmethod
     def _truncate_text(text, max_length):
@@ -3778,8 +3719,7 @@ class Leveler(commands.Cog):
             if pred.result is False:
                 return await ctx.send("**Command cancelled.**")
         failed = 0
-        for i in range(pages):
-            await asyncio.sleep(0)
+        async for i in AsyncIter(range(pages), delay=0, steps=100):
             async with self.session.get(
                 f"https://mee6.xyz/api/plugins/levels/leaderboard/{ctx.guild.id}?page={i}&limit=999"
             ) as r:
@@ -3788,9 +3728,7 @@ class Leveler(commands.Cog):
                     data = await r.json()
                 else:
                     return await ctx.send("No data was found within the Mee6 API.")
-
-            for userdata in data["players"]:
-                await asyncio.sleep(0)
+            async for userdata in AsyncIter(data["players"], delay=0, steps=100):
                 # _handle_levelup requires a Member
                 user = ctx.guild.get_member(int(userdata["id"]))
 
@@ -3808,8 +3746,7 @@ class Leveler(commands.Cog):
 
                 # get rid of old level exp
                 old_server_exp = 0
-                for _i in range(userinfo["servers"][str(server.id)]["level"]):
-                    await asyncio.sleep(0)
+                async for _i in AsyncIter(range(userinfo["servers"][str(server.id)]["level"]), delay=0, steps=100):
                     old_server_exp += self._required_exp(_i)
                 userinfo["total_exp"] -= old_server_exp
                 userinfo["total_exp"] -= userinfo["servers"][str(server.id)]["current_exp"]
@@ -3846,8 +3783,7 @@ class Leveler(commands.Cog):
                 return await ctx.send("No data was found within the Mee6 API.")
         server = ctx.guild
         remove_role = None
-        for role in data["role_rewards"]:
-            await asyncio.sleep(0)
+        async for role in AsyncIter(data["role_rewards"], delay=0, steps=100):
             role_name = role["role"]["name"]
             level = role["rank"]
 
@@ -3903,7 +3839,6 @@ class Leveler(commands.Cog):
             if pred.result is False:
                 return await ctx.send("**Command cancelled.**")
         failed = 0
-        await asyncio.sleep(0)
         async with self.session.get(
             f"https://api.tatsumaki.xyz/guilds/{ctx.guild.id}/leaderboard?limit&=-1"
         ) as r:
@@ -3912,11 +3847,9 @@ class Leveler(commands.Cog):
                 data = await r.json()
             else:
                 return await ctx.send("No data was found within the Tastumaki API.")
-
-        for userdata in data:
+        async for userdata in AsyncIter(data, delay=0, steps=100):
             if userdata is None:
                 continue
-            await asyncio.sleep(0)
             # _handle_levelup requires a Member
             user = ctx.guild.get_member(int(userdata["user_id"]))
 
@@ -3934,8 +3867,7 @@ class Leveler(commands.Cog):
 
             # get rid of old level exp
             old_server_exp = 0
-            for _i in range(userinfo["servers"][str(server.id)]["level"]):
-                await asyncio.sleep(0)
+            async for _i in AsyncIter(range(userinfo["servers"][str(server.id)]["level"]), delay=0, steps=100):
                 old_server_exp += self._required_exp(_i)
             userinfo["total_exp"] -= old_server_exp
             userinfo["total_exp"] -= userinfo["servers"][str(server.id)]["current_exp"]
