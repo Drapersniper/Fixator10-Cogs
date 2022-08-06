@@ -966,6 +966,7 @@ class Leveler(commands.Cog):
 
         # the only color customizable section on a levelup message is the "info" area, maybe more in the future
         section = "info"
+        section_name = "levelup_info_color"
         
         # creates user if doesn't exist
         await self._create_user(user, server)
@@ -1008,7 +1009,7 @@ class Leveler(commands.Cog):
             await ctx.send("**Not a valid color. Use** `default`, `white`, **a valid hex code formatted like** `#990000`, **or** `auto` **for automatic**.")
             return
 
-        await self.db.users.update_one({"user_id": str(user.id)}, {"$set": {section: set_color[0]}})  # Fix incorrect variable user - before it would raise an undefined error
+        await self.db.users.update_one({"user_id": str(user.id)}, {"$set": {section_name: set_color[0]}})
         await ctx.send("**Color for level-up {} set.**".format(section))
 
     # uses k-means algorithm to find color from bg, rank is abundance of color, descending
